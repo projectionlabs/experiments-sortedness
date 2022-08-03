@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "experimentssortedness"
-version = "0.220803.2"
+version = "0.220803.3"
 description = "Comparison of measures of projection quality"
 authors = ["davips <dpsabc@gmail.com>", "Fernando", "Tácito"]
 license = "GPLv3"
