@@ -1,2 +1,3 @@
 [storages]
+local = sqlite+pysqlite:////home/user/.sortedness-cache.db
 remote = mysql://user:password@host/database

@@ -1,26 +1,3 @@
-#  Copyright (c) 2022. Davi Pereira dos Santos
-#  This file is part of the sortedness project.
-#  Please respect the license - more about this in the section (*) below.
-#
-#  sortedness is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  sortedness is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with sortedness.  If not, see <http://www.gnu.org/licenses/>.
-#
-#  (*) Removing authorship by any means, e.g. by distribution of derived
-#  works or verbatim, obfuscated, compiled or rewritten versions of any
-#  part of this work is illegal and it is unethical regarding the effort and
-#  time spent here.
-#
-
 import matplotlib.pyplot as plt
 from openml.datasets import get_dataset
 from scipy.stats import weightedtau, spearmanr, kendalltau
@@ -29,12 +6,13 @@ from sklearn.manifold import TSNE
 
 from hoshmap import idict
 from shelchemy.cache import sopen
-from sortedness.config import local_cache_uri, remote_cache_uri
-from sortedness.evaluation.plot import Plot, colors
 from sortedness.kruskal import kruskal
 from sortedness.local import ushaped_decay_f, sortedness
 from sortedness.rank import rank_by_distances
 from sortedness.trustworthiness import trustworthiness, continuity
+
+from experimentssortedness.config import local_cache_uri, remote_cache_uri
+from experimentssortedness.evaluation.plot import Plot, colors
 
 functions = {
     "-1*kruskal": lambda X, X_: -kruskal(X, X_),
@@ -109,7 +87,7 @@ for projection, fproject in projectors.items():
 
             data = prepare_experiment(data)
             data >>= [local, remote]  # Add caches (but don't send/fetch anything yet)
-            data.evaluate()  # Evaluate each needed field (and store it, or just fetch it when possible)
+            # data.evaluate()  # Force evaluation of all fields
 
             plot(f"{name}: {projection}", data)
             data.show()
