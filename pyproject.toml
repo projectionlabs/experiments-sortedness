@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "experimentssortedness"
+version = "0.220803.1"
+description = "Comparison of measures of projection quality"
+authors = ["davips <dpsabc@gmail.com>", "Fernando", "Tácito"]
+license = "GPLv3"
+
+[tool.poetry.dependencies]
+python = "^3.10,<4.0"
+scikit-learn = "^1.1.1"
+openml = "^0.12.2"
+pandas = "^1.4.3"
+hoshmap = "^0.220727.3"
+dash = "^2.6.0"
+ranky = "^0.2.9"
+sympy = "^1.10.1"
+matplotlib = "^3.5.2"
+PyQt5 = "^5.15.7"
+shelchemy = "^0.220726.8"
+PyMySQL = "^1.0.2"
+lazydf = "^0.220725.4"
+lz4 = "^4.0.2"
+cryptography = "^37.0.4"
+sortedness = "^0.220803.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+pytest-cov = "^3.0.0"
+black = "^22.6.0"
+pdoc3 = "^0.10.0"
+autoreadme = "^0.2102.20"
+ipython = "^8.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
