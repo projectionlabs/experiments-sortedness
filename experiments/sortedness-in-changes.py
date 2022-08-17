@@ -105,7 +105,7 @@ for proj in projections:
     # Compute Sortedness
     s = []
     for coefname in [weightedtau, spearmanr, kendalltau]:
-        s.append(sortedness(X.to_numpy(), tsne_results, f=coefname))
+        s.append(sortedness(X.to_numpy(), proj, f=coefname))
     results_s.append(s)
 
 tw_mean = []
