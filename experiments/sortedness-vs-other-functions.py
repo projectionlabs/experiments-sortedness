@@ -11,7 +11,7 @@ from sortedness.local import ushaped_decay_f, sortedness
 from sortedness.rank import rank_by_distances
 from sortedness.trustworthiness import trustworthiness, continuity
 
-from experimentssortedness.config import local_cache_uri, remote_cache_uri
+from experimentssortedness.config import local_cache_uri, remote_cache_uri, local_images_dir
 from experimentssortedness.evaluation.plot import Plot, colors
 
 functions = {
@@ -53,12 +53,23 @@ def prepare_experiment(d):
     return d
 
 
-def plot(proj_name, d):
+def plot(name, projection, d):
+
+    proj_name = f"{name}: {projection}"
+
+    from itertools import cycle
+    li = [1, 2, 3, 4, 5, 6, 7, 8]
+    licycle = cycle(li)
+    file_name_pre = local_images_dir + name + "-" + projection + "-"
+    
     for xlabel in functions:
         p = Plot(d, proj_name, xlabel, "'sortedness'", legend=True, plt=plt)
         for slabel, color in zip(corr_funcs.keys(), colors):
             p << (slabel, color)
         p.finish()
+
+        file_name = file_name_pre + str(next(licycle)) + ".png"
+        plt.savefig(file_name)
 
     for xlabel in ["-1*kruskal", "-1*nonmetric_kruskal"]:
         p = Plot(d, proj_name, xlabel, "cont, trust", legend=True, plt=plt)
@@ -66,28 +77,53 @@ def plot(proj_name, d):
             p << (slabel, color)
         p.finish()
 
+        file_name = file_name_pre + str(next(licycle)) + ".png"
+        plt.savefig(file_name)
+
     p = Plot(d, proj_name, "trustworthiness", "continuity", legend=False, plt=plt)
     p << ("continuity", "blue")
     p.finish()
+
+    file_name = file_name_pre + str(next(licycle)) + ".png"
+    plt.savefig(file_name)
 
     p = Plot(d, proj_name, "-1*kruskal", "-1*nonmetric_kruskal", legend=False, plt=plt)
     p << ("-1*nonmetric_kruskal", "green")
     p.finish()
 
-    plt.show()
+    file_name = file_name_pre + str(next(licycle)) + ".png"
+    plt.savefig(file_name)
 
+    #plt.show()
 
+datasets = ["semeion"
+    , "AP_Breast_Ovary"
+    , "Dexter"
+    , "Dorothea"
+    , "Gisette"
+    , "mfeat-pixel"
+]
 data = idict(seed=0)
 for projection, fproject in projectors.items():
-    with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
-        for name in ["abalone", "iris"]:
+    #with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
+    with sopen(remote_cache_uri) as remote:
+    #with sopen(local_cache_uri) as local:
+        #for name in ["abalone", "iris"]:
+        for name in datasets:
             data["dataset"] = name
             data["X"] = fetch_asnumpy  # Apply proposed fetch() (but don't evaluate yet)
             data["X_"] = fproject  # Apply proposed fproject() (but don't evaluate yet)
 
             data = prepare_experiment(data)
-            data >>= [local, remote]  # Add caches (but don't send/fetch anything yet)
+            #data >>= [local, remote]  # Add caches (but don't send/fetch anything yet)
+            data >>= [remote]  # Add caches (but don't send/fetch anything yet)
+            #data >>= [local]  # Add caches (but don't send/fetch anything yet)
             # data.evaluate()  # Force evaluation of all fields
 
-            plot(f"{name}: {projection}", data)
+            #plot(f"{name}: {projection}", data)
+            plot(name, projection, data)
             data.show()
+
+            break
+
+    break
