@@ -1,4 +1,6 @@
+from numpy.random import default_rng
 from sklearn.datasets import fetch_openml
+from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
@@ -11,28 +13,29 @@ from sortedness.trustworthiness import trustworthiness, continuity
 from scipy.stats import weightedtau, spearmanr, kendalltau
 from statistics import mean
 
+#########################################################################
+#########################################################################
 
-#########################################################################
-#########################################################################
+rng = default_rng()
+
 
 def randomize_projection(X_, p):
-    rnd_index = np.random.permutation(X_.shape[0])
-    rnd_size = int(X_.shape[0] * (p / 100))
-    rnd_index = rnd_index[0:rnd_size]
-
-    rnd_x = np.random.rand(rnd_size)
-    rnd_y = np.random.rand(rnd_size)
-
+    xmin = min(X_[:, 0])
+    xmax = max(X_[:, 0])
+    ymin = min(X_[:, 1])
+    ymax = max(X_[:, 1])
+    indices = rng.choice(len(X_), size=(len(X_) * p) // 100, replace=False)
     projection_rnd = X_.copy()
-    projection_rnd[rnd_index, 0] = projection_rnd[rnd_index, 0] + rnd_x
-    projection_rnd[rnd_index, 1] = projection_rnd[rnd_index, 1] + rnd_y
-
+    replacement = np.random.rand(len(indices), 2)
+    replacement[:, 0] = xmin + replacement[:, 0] * (xmax - xmin)
+    replacement[:, 1] = ymin + replacement[:, 1] * (ymax - ymin)
+    projection_rnd[indices] = replacement
     return projection_rnd
 
 
 def randomize_projections(X_):
     projections = [X_.copy()]
-    for i in range(10, 60, 10):
+    for i in range(10, 110, 20):
         projections.append(randomize_projection(X_, i))
     return projections
 
@@ -77,9 +80,10 @@ y = y_test
 # plt.show()
 
 # tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
-tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
-tsne_results = tsne.fit_transform(X)
-X = tsne_results
+# tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
+# tsne_results = tsne.fit_transform(X)
+# X = tsne_results
+X = PCA(n_components=2).fit_transform(X)
 
 # Exibe a projecao da tSNE
 # df_subset['tsne-2d-one'] = tsne_results[:,0]
@@ -97,7 +101,7 @@ X = tsne_results
 
 ############################################################
 
-projections = randomize_projections(tsne_results)
+projections = randomize_projections(X)
 
 results_tw = []
 results_s = []
@@ -108,8 +112,9 @@ for proj in projections:
 
     # Compute Sortedness
     s = []
-    for coefname in [weightedtau, spearmanr, kendalltau, None]:  # None = the proposed measure
+    for coefname in [weightedtau, spearmanr, kendalltau]:  # None = the proposed measure
         s.append(sortedness(X, proj, f=coefname))
+    s.append(sortedness(X, proj, f=None, weigher=lambda x: 1 / (1 + x)))
     results_s.append(s)
 
 tw_mean = []
