@@ -1,3 +1,4 @@
+from lange import ap
 from numpy.random import default_rng
 from sklearn.datasets import fetch_openml
 from sklearn.decomposition import PCA
@@ -8,10 +9,11 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-from sortedness.local import sortedness
 from sortedness.trustworthiness import trustworthiness, continuity
 from scipy.stats import weightedtau, spearmanr, kendalltau
 from statistics import mean
+
+from experimentssortedness.temporary import sortedness
 
 #########################################################################
 #########################################################################
@@ -35,7 +37,7 @@ def randomize_projection(X_, p):
 
 def randomize_projections(X_):
     projections = [X_.copy()]
-    for i in range(10, 110, 20):
+    for i in [5, 10, 25, 50, 100]:
         projections.append(randomize_projection(X_, i))
     return projections
 
@@ -80,10 +82,10 @@ y = y_test
 # plt.show()
 
 # tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
-# tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
-# tsne_results = tsne.fit_transform(X)
-# X = tsne_results
-X = PCA(n_components=2).fit_transform(X)
+tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
+tsne_results = tsne.fit_transform(X)
+X = tsne_results
+# X = PCA(n_components=2).fit_transform(X)
 
 # Exibe a projecao da tSNE
 # df_subset['tsne-2d-one'] = tsne_results[:,0]
@@ -105,16 +107,16 @@ projections = randomize_projections(X)
 
 results_tw = []
 results_s = []
-
+f = lambda x: 1 / (1 + x)
 for proj in projections:
     # Compute TW
-    results_tw.append(trustworthiness(X, proj))
+    results_tw.append(2 * trustworthiness(X, proj) - 1)
 
     # Compute Sortedness
     s = []
-    for coefname in [weightedtau, spearmanr, kendalltau]:  # None = the proposed measure
+    for coefname in [spearmanr, kendalltau, lambda X, X_: weightedtau(X, X_, weigher=f)]:
         s.append(sortedness(X, proj, f=coefname))
-    s.append(sortedness(X, proj, f=None, weigher=lambda x: 1 / (1 + x)))
+    s.append(sortedness(X, proj, f=None, weigher=f))
     results_s.append(s)
 
 tw_mean = []
@@ -139,22 +141,25 @@ for s in results_s:
     box_wtau_x.append(s[2])
     box_sortedness_.append(s[3])
 
-# df = pd.DataFrame({
-#     'Sortedness ρ': s_p_mean,
-#     'Sortedness tau': s_tau_mean,
-#     'Sortedness wtau-x': s_wtau_x_mean,
-#     'sortedness': sortedness_mean,
-#     'TW': tw_mean
-# })
-# ax = df.plot(kind='line')
-# ax.set_xticklabels(['', '0%', '10%', '20%', '30%', '40%', '50%'])
-# # ax.set_xticklabels([1,2,3,4,5,6], ['0%', '10%', '20%', '30%', '40%', '50%'])
-# plt.show()
+df = pd.DataFrame({
+    'Sortedness ρ': s_p_mean,
+    'Sortedness tau': s_tau_mean,
+    'Sortedness wtau-x': s_wtau_x_mean,
+    'sortedness': sortedness_mean,
+    'TW': tw_mean
+})
+ax = df.plot(kind='line')
+ax.set_xticklabels(['', '0%', '5%', '10%', '25%', '50%', '100%'])
+# ax.set_xticklabels([1,2,3,4,5,6], ['0%', '5%', '10%', '25%', '50%', '100%'])
+plt.show()
+
+#########################################
+#########################################
 
 fig = plt.figure()
 bp = plt.boxplot(box_p + box_tau + box_wtau_x + box_sortedness_ + results_tw, vert=1, patch_artist=True)
 
-bp_colors = np.repeat([plt.cm.Pastel1(0), plt.cm.Pastel1(1), plt.cm.Pastel1(2), plt.cm.Pastel1(3), plt.cm.Pastel1(4)], [6, 6, 6, 6, 6], axis=0)
+bp_colors = np.repeat(list(map(plt.cm.Pastel1, ap[0, 1, ..., 4].l)), [6] * 5, axis=0)
 bp_list = []
 for i, bplot in enumerate(bp['boxes']):
     bplot.set(color='gray', linewidth=3)
@@ -170,11 +175,12 @@ for i, cap in enumerate(bp['caps']):
 for i, median in enumerate(bp['medians']):
     median.set(color='gray', linewidth=3)
 
-plt.legend([bp_list[0], bp_list[6], bp_list[12], bp_list[18], bp_list[24]], ['Sortedness - p', 'Sortedness - tau', 'Sortedness - wtau-x', 'sortedness', 'TW'], loc='lower right')
-plt.xticks(
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
-    , ['0%', '10%', '20%', '30%', '40%', '50%', '0%', '10%', '20%', '30%', '40%', '50%', '0%', '10%', '20%', '30%', '40%', '50%', '0%', '10%', '20%', '30%', '40%', '50%', '0%', '10%', '20%', '30%', '40%', '50%']
+plt.legend(
+    list(map(bp_list.__getitem__, ap[0, 6, ..., 24])),
+    ['Sortedness - p', 'Sortedness - tau', 'Sortedness - wtau-x', 'sortedness', 'TW'],
+    loc='lower right'
 )
+plt.xticks(ap[1, 2, ..., 30], ['0%', '5%', '10%', '25%', '50%', '100%'] * 5)
 
 plt.title("Boxplot", loc="center", fontsize=18)
 plt.xlabel("Quantidade de pontos aleatorizados")
