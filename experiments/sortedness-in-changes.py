@@ -6,10 +6,12 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-from sortedness.local import sortedness
 from sortedness.trustworthiness import trustworthiness, continuity
 from scipy.stats import weightedtau, spearmanr, kendalltau
 from statistics import mean
+
+from experimentssortedness.temporary import sortedness
+
 
 #########################################################################
 #########################################################################
