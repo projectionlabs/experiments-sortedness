@@ -48,15 +48,15 @@ def randomize_projections(X_):
 # For reproducability of the results
 np.random.seed(42)
 
-sample_size = 1000
+sample_size = 10000
 
-mnist = fetch_openml('mnist_784')
+X, y = fetch_openml('mnist_784', version=1, return_X_y=True)
 
-t_size = sample_size / mnist.data.shape[0]
+t_size = sample_size / X.shape[0]
 
 # Split data into 50% train and 50% test subsets
 X_train, X_test, y_train, y_test = train_test_split(
-    mnist.data, mnist.target, test_size=t_size, random_state=42, shuffle=False
+    X, y, test_size=t_size, random_state=42, shuffle=False
 )
 
 X = X_test
@@ -82,11 +82,10 @@ y = y_test
 # plt.show()
 
 # tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
-tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
-tsne_results = tsne.fit_transform(X)
-X = tsne_results
-# X = PCA(n_components=2).fit_transform(X)
-
+# tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
+# tsne_results = tsne.fit_transform(X)
+# X = tsne_results
+X = PCA(n_components=2).fit_transform(X)
 # Exibe a projecao da tSNE
 # df_subset['tsne-2d-one'] = tsne_results[:,0]
 # df_subset['tsne-2d-two'] = tsne_results[:,1]
@@ -107,16 +106,15 @@ projections = randomize_projections(X)
 
 results_tw = []
 results_s = []
-f = lambda x: 1 / (1 + x)
+wtaux2 = lambda X, X_: weightedtau(X, X_, weigher=lambda r: 1 / (1 + r ** 2))
 for proj in projections:
     # Compute TW
     results_tw.append(2 * trustworthiness(X, proj) - 1)
 
     # Compute Sortedness
     s = []
-    for coefname in [spearmanr, kendalltau, lambda X, X_: weightedtau(X, X_, weigher=f)]:
-        s.append(sortedness(X, proj, f=coefname))
-    s.append(sortedness(X, proj, f=None, weigher=f))
+    for correlation_index in [spearmanr, kendalltau, weightedtau, wtaux2]:
+        s.append(sortedness(X, proj, f=correlation_index))
     results_s.append(s)
 
 tw_mean = []
@@ -126,26 +124,26 @@ for tw in results_tw:
 s_p_mean = []
 s_tau_mean = []
 s_wtau_x_mean = []
-sortedness_mean = []
+s_wtau_x2_mean = []
 box_p = []
 box_tau = []
 box_wtau_x = []
-box_sortedness_ = []
+box_wtau_x2 = []
 for s in results_s:
     s_p_mean.append(mean(s[0]))
     s_tau_mean.append(mean(s[1]))
     s_wtau_x_mean.append(mean(s[2]))
-    sortedness_mean.append(mean(s[3]))
+    s_wtau_x2_mean.append(mean(s[3]))
     box_p.append(s[0])
     box_tau.append(s[1])
     box_wtau_x.append(s[2])
-    box_sortedness_.append(s[3])
+    box_wtau_x2.append(s[3])
 
 df = pd.DataFrame({
     'Sortedness ρ': s_p_mean,
     'Sortedness tau': s_tau_mean,
-    'Sortedness wtau-x': s_wtau_x_mean,
-    'sortedness': sortedness_mean,
+    'Sortedness wtau': s_wtau_x_mean,
+    'Sortedness wtau²': s_wtau_x2_mean,
     'TW': tw_mean
 })
 ax = df.plot(kind='line')
@@ -157,7 +155,7 @@ plt.show()
 #########################################
 
 fig = plt.figure()
-bp = plt.boxplot(box_p + box_tau + box_wtau_x + box_sortedness_ + results_tw, vert=1, patch_artist=True)
+bp = plt.boxplot(box_p + box_tau + box_wtau_x + box_wtau_x2 + results_tw, vert=1, patch_artist=True)
 
 bp_colors = np.repeat(list(map(plt.cm.Pastel1, ap[0, 1, ..., 4].l)), [6] * 5, axis=0)
 bp_list = []
@@ -177,7 +175,7 @@ for i, median in enumerate(bp['medians']):
 
 plt.legend(
     list(map(bp_list.__getitem__, ap[0, 6, ..., 24])),
-    ['Sortedness - p', 'Sortedness - tau', 'Sortedness - wtau-x', 'sortedness', 'TW'],
+    ['Sortedness - p', 'Sortedness - tau', 'Sortedness - wtau-x', 'Sortedness - wtau-x²', 'TW'],
     loc='lower right'
 )
 plt.xticks(ap[1, 2, ..., 30], ['0%', '5%', '10%', '25%', '50%', '100%'] * 5)

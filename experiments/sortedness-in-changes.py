@@ -6,10 +6,12 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-from sortedness.local import sortedness
 from sortedness.trustworthiness import trustworthiness, continuity
 from scipy.stats import weightedtau, spearmanr, kendalltau
 from statistics import mean
+
+from experimentssortedness.temporary import sortedness
+
 
 from sklearn.neighbors import NearestNeighbors
 
@@ -26,10 +28,10 @@ def NeighborhoodPreservation(X, X_, k):
     percents = []
     for i in range(X.shape[0]):
         percents.append(len(list(set(index_ori[i]).intersection(index_proj[i])))/k)
-    
+
     return sum(percents)/X.shape[0]
 
-#############################################   
+#############################################
 
 def randomize_projection(X_, p):
     rnd_index = np.random.permutation(X_.shape[0])
