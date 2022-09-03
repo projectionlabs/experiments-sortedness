@@ -48,7 +48,7 @@ def randomize_projections(X_):
 # For reproducability of the results
 np.random.seed(42)
 
-sample_size = 10000
+sample_size = 3000
 
 X, y = fetch_openml('mnist_784', version=1, return_X_y=True)
 
