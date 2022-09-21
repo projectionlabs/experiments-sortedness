@@ -2,13 +2,19 @@
 This file has the updated version of the proposed measure sortedness.
 It is here to help fixing bugs, but it will be moved to the package when done.
 """
+import gc
+from itertools import repeat, chain
 
 import numpy as np
-from numpy import eye, mean, argsort, arange, indices
+import pathos.multiprocessing as mp
+from numpy import eye, mean, sqrt, maximum, minimum
 from numpy.random import permutation
-from scipy.spatial.distance import cdist, pdist
-from scipy.stats import weightedtau, rankdata
+from scipy.spatial.distance import cdist, pdist, squareform, sqeuclidean
+from scipy.stats import weightedtau, rankdata, kendalltau
 from sklearn.decomposition import PCA
+
+from experimentssortedness.parallel import pw_sqeucl
+from shelchemy.lazy import ichunks
 
 
 def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
@@ -40,8 +46,8 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     0.070104521222
     """
     result, pvalues = [], []
-    sqdist_X = sqdist_matrix(X)
-    sqdist_X_ = sqdist_matrix(X_)
+    sqdist_X = cdist(X, X)
+    sqdist_X_ = cdist(X_, X_)
 
     # For f=weightedtau: scores = -ranks.
     scores_X = -remove_diagonal(sqdist_X)
@@ -58,24 +64,21 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     return result
 
 
-def sqdist_matrix(X):
-    return cdist(X, X, metric="sqeuclidean")
-
-
 def remove_diagonal(X):
     n_points = len(X)
     nI = ~eye(n_points, dtype=bool)  # Mask to remove diagonal.
     return X[nI].reshape(n_points, -1)
 
 
-def rsortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
+def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=False, **kwargs):
     """
-    Recyprocal sortedness: consider the neighborhood realtionship the other way around.
-    Might be good to assess the effect of a projection on hubness.
+    Reciprocal sortedness: consider the neighborhood realtion the other way around.
+    Might be good to assess the effect of a projection on hubness, and also to serve as a loss function for a custom projection algorithm.
     Break ties by comparing distances. In case of a new tie, break it by lexicographical order.
-    TODO: fix tie breaker, and create flag to do that
+    # TODO: add flag to break not so rare cases of ties that persist after projection (implies a much slower algorithm)
+        this is needed to avoid penalizing a correct projection because of a tie
 
-    >>> ll = [[i, ] for i in range(6)]
+    >>> ll = [[i, ] for i in range(17)]
     >>> a, b = np.array(ll), np.array(ll[0:1] + list(reversed(ll[1:])))
     >>> b.ravel()
     array([ 0, 16, 15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1])
@@ -94,72 +97,34 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
             0.30037263,  0.01412381,  0.18679486, -0.13212791,  0.28692565,
             0.4465226 , -0.17871893,  0.2020813 ,  0.28089447, -0.16861842,
            -0.5131998 ,  0.0955369 ])
-    >>> min(r), max(r)
-    (-0.513199801882, 0.44652260028)
-    >>> round(mean(r), 12)
-    0.042777358461
+    >>> min(r), max(r), round(mean(r), 12)
+    (-0.513199801882, 0.44652260028, 0.042777358461)
     """
+    tmap = mp.ThreadingPool().imap if len(X) > 0 and parallel else map
+    pmap = mp.ProcessingPool().imap if len(X) > 0 and (parallel or parallel is None) else map
+
+    # TODO: check if parallelization really brings more benefits (CPU) than problems (RAM)
+    def thread(M):
+        D = cdist(M, M, metric="sqeuclidean")
+        R = rankdata(D, axis=0)
+        return -remove_diagonal(R)  # For f=weightedtau: scores = -ranks.
+
+    scores_X, scores_X_ = pmap(thread, [X, X_])
+
+    def thread(l):
+        lst1 = []
+        lst2 = []
+        for i in l:
+            corr, pvalue = f(scores_X[i, :], scores_X_[i, :], **kwargs)
+            lst1.append(round(corr, 12))
+            lst2.append(round(pvalue, 12))
+        return lst1, lst2
+
     result, pvalues = [], []
-    # sqdist_X = sqdist_matrix(X)
-    # sqdist_X_ = sqdist_matrix(X_)
-    # ranks0_X = rankdata(sqdist_X, axis=0, method="average")
-    # ranks0_X_ = rankdata(sqdist_X_, axis=0, method="average")
-    # print("sqdist_X")
-    # print(sqdist_X)
-    # print("ranks0_X")
-    # print(ranks0_X)
-    #
-    # # Make ranking over sorted matrix to be able to break ties by method="ordinal".
-    # idxs_X = argsort(sqdist_X, axis=1, kind="stable")
-    # idxs_X_ = argsort(sqdist_X_, axis=1, kind="stable")
-    # print("idxs_X")
-    # print(idxs_X)
-    # print()
-    #
-    # sorted_ranks0_X = ranks0_X[np.arange(ranks0_X.shape[0])[:, None], idxs_X]
-    # sorted_ranks0_X_ = ranks0_X_[np.arange(ranks0_X_.shape[0])[:, None], idxs_X_]
-    # print("sorted_ranks0_X")
-    # print(sorted_ranks0_X)
-    # print("1111111111\n")
-    #
-    # ranks1_X = rankdata(sorted_ranks0_X, axis=1, method="ordinal")
-    # ranks1_X_ = rankdata(sorted_ranks0_X, axis=1, method="ordinal")
-    # print("ranks1_X")
-    # print(ranks1_X)
-    # print()
-    #
-    # # Revert indexing.
-    # identity = indices((len(X), len(X)))[0].transpose()
-    # rev_idxs_X = identity[np.arange(identity.shape[0])[:, None], idxs_X]
-    # rev_idxs_X_ = identity[np.arange(identity.shape[0])[:, None], idxs_X_]
-    # print("rev_idxs_X")
-    # print(rev_idxs_X)
-    # print()
-    #
-    # ranks_X = ranks1_X[np.arange(ranks1_X.shape[0])[:, None], rev_idxs_X]
-    # ranks_X_ = ranks1_X_[np.arange(ranks1_X_.shape[0])[:, None], rev_idxs_X_]
-    # print("ranks_X")
-    # print(ranks_X)
-    # print()
-    #
-    # # Discard self-neighbors and make scores from ranks for compatibility with f=weightedtau.
-    # scores_X = -(ranks_X[:, 1:])
-    # scores_X_ = -(ranks_X_[:, 1:])
-    # print(scores_X)
-    # print()
-
-    sqdist_X = sqdist_matrix(X)
-    sqdist_X_ = sqdist_matrix(X_)
-    ranks_X = rankdata(sqdist_X, axis=0)
-    ranks_X_ = rankdata(sqdist_X_, axis=0)
-    # scores = -ranks for f=weightedtau.
-    scores_X = -remove_diagonal(ranks_X)
-    scores_X_ = -remove_diagonal(ranks_X_)
-
-    for i in range(len(X)):
-        corr, pvalue = f(scores_X[i, :], scores_X_[i, :], **kwargs)
-        result.append(round(corr, 12))
-        pvalues.append(round(pvalue, 12))
+    jobs = pmap(thread, ichunks(range(len(X)), 15, asgenerators=False))
+    for corrs, pvalues in jobs:
+        result.extend(corrs)
+        pvalues.extend(pvalues)
 
     result = np.array(result, dtype=np.float)
     if return_pvalues:
@@ -167,9 +132,138 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     return result
 
 
-def gsortedness(X, X_, f=weightedtau, return_pvalue=False, **kwargs):
+def global_pwsortedness(X, X_, parallel=True):
     """
-    Global (pairwise) sortedness
+    Global pairwise sortedness (Λ𝜏1)
+
+    Parameters
+    ----------
+    X
+        Original dataset or precalculated pairwise squared distances from pdist(X, metric="sqeuclidean")
+    X_
+        Projected points or precalculated pairwise squared distances from pdist(X, metric="sqeuclidean")
+
+    Returns
+    -------
+    (Λ𝜏1, p-value)
+        The p-value considers as null hypothesis the absence of order, i.e., Λ𝜏1 = 0.
+    """
+    # TODO: parallelize pdist into a for?
+    thread = lambda M: pdist(M, metric="sqeuclidean")
+    xmap = mp.ThreadingPool().imap if parallel else map
+    dists_X, dists_X_ = xmap(thread, [X, X_])
+    return kendalltau(dists_X, dists_X_)
+
+
+def pwsortedness(X, X_, f=weightedtau, rankings=True, return_pvalues=False, parallel=True, **kwargs):
+    """
+    Local pairwise sortedness (Λ𝜏w)
+
+    Parameters
+    ----------
+    X
+        Original dataset
+    X_
+        Projected points
+    f
+        Ranking correlation function
+    rankings
+        External importance ranking for each point in relation to all others.
+        Should be a 2d numpy array with one ranking per row.
+        True: calculate internally based on proximity of pair centroid to the point of interest
+        False: do not provide rankings to `f`
+    return_pvalues
+        Flag to include the second item returned by `f`, usually a p-value, in the resulting list
+    parallel
+        None: Avoid high-memory parallelization
+        True: Full parallelism
+        False: No parallelism
+    kwargs
+        Any extra argument to be provided to `f`
+
+    Returns
+    -------
+        Numpy vector or, if p-values are included, 2d array
+
+    >>> import numpy as np
+    >>> from functools import partial
+    >>> from scipy.stats import spearmanr, weightedtau
+    >>> m = (1, 2)
+    >>> cov = eye(2)
+    >>> rng = np.random.default_rng(seed=0)
+    >>> original = rng.multivariate_normal(m, cov, size=12)
+    >>> projected2 = PCA(n_components=2).fit_transform(original)
+    >>> projected1 = PCA(n_components=1).fit_transform(original)
+    >>> np.random.seed(0)
+    >>> projectedrnd = permutation(original)
+
+    >>> r = pwsortedness(original, original)
+    >>> min(r), max(r), round(mean(r), 12)
+    (1.0, 1.0, 1.0)
+    >>> r = pwsortedness(original, projected2)
+    >>> min(r), round(mean(r), 12), max(r)
+    (1.0, 1.0, 1.0)
+    >>> r = pwsortedness(original, projected1)
+    >>> min(r), round(mean(r), 12), max(r)
+    (0.705228292232, 0.769490925935, 0.812276273024)
+    >>> r = pwsortedness(original, projected2[:, 1:])
+    >>> min(r), round(mean(r), 12), max(r)
+    (0.152876321633, 0.183289364037, 0.240046100113)
+    >>> r = pwsortedness(original, projectedrnd)
+    >>> min(r), round(mean(r), 12), max(r)
+    (-0.130051112362, -0.094590524401, -0.065543415145)
+    """
+    pmap = mp.ProcessingPool().imap if parallel else map
+    tmap = mp.ThreadingPool().imap if parallel else map
+    thread = lambda M: -pdist(M, metric="sqeuclidean")
+    scores_X, scores_X_ = pmap(thread, [X, X_])
+
+    if rankings is True:
+        D, D_ = tmap(squareform, [scores_X, scores_X_])
+        n = len(D)
+        m = (n ** 2 - n) // 2
+        E = np.zeros((m, n))
+        E_ = np.zeros((m, n))
+        c = 0
+        for i in range(n - 1):
+            h = n - i - 1
+            d = c + h
+            E[c:d] = D[i] + D[i + 1:]
+            E_[c:d] = D_[i] + D_[i + 1:]
+            c = d
+        del D
+        del D_
+        gc.collect()
+        M = minimum(E, E_)
+        del E
+        del E_
+        gc.collect()
+
+    def thread(r):
+        if rankings is True:
+            corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
+        elif rankings is False:
+            corr, pvalue = f(scores_X, scores_X_, **kwargs)
+        else:
+            corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
+        return round(corr, 12), round(pvalue, 12)
+
+    result, pvalues = [], []
+    lst = (rankdata(M[:, i]).astype(int) for i in range(len(X)))
+    for corrs, pvalue in pmap(thread, lst):
+        result.append(corrs)
+        pvalues.append(pvalue)
+
+    result = np.array(result, dtype=np.float)
+    if return_pvalues:
+        return np.array(list(zip(result, pvalues)))
+    return result
+
+
+def stress(X, X_, metric=True, parallel=True, **kwargs):
+    """
+    Kruskal's "Stress Formula 1"
+    default: Euclidean
 
     >>> import numpy as np
     >>> from functools import partial
@@ -178,35 +272,58 @@ def gsortedness(X, X_, f=weightedtau, return_pvalue=False, **kwargs):
     >>> cov = eye(2)
     >>> rng = np.random.default_rng(seed=0)
     >>> original = rng.multivariate_normal(mean, cov, size=12)
-    >>> projected2 = PCA(n_components=2).fit_transform(original)
-    >>> projected1 = PCA(n_components=1).fit_transform(original)
-    >>> np.random.seed(0)
-    >>> projectedrnd = permutation(original)
+    >>> s = stress(original, original)
+    >>> min(s), max(s), s
+    (0.0, 0.0, array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]))
+    >>> projected = PCA(n_components=2).fit_transform(original)
+    >>> s = stress(original, projected)
+    >>> min(s), max(s), s
+    (0.0, 0.0, array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]))
+    >>> projected = PCA(n_components=1).fit_transform(original)
+    >>> s = stress(original, projected)
+    >>> min(s), max(s), s
+    (0.081106807792, 0.347563916162, array([0.29566817, 0.31959501, 0.23577467, 0.08110681, 0.29811345,
+           0.18098479, 0.18240664, 0.155316  , 0.20012608, 0.15791188,
+           0.34756392, 0.25626217]))
+    >>> stress(original, projected)
+    array([0.29566817, 0.31959501, 0.23577467, 0.08110681, 0.29811345,
+           0.18098479, 0.18240664, 0.155316  , 0.20012608, 0.15791188,
+           0.34756392, 0.25626217])
+    >>> stress(original, projected, metric=False)
+    array([0.28449947, 0.25842568, 0.24773341, 0.09558354, 0.22450148,
+           0.23819653, 0.15127226, 0.1167218 , 0.2901905 , 0.14607233,
+           0.31265683, 0.29262076])
 
-    >>> gsortedness(original, original)
-    1.0
-    >>> gsortedness(original, projected2)
-    1.0
-    >>> gsortedness(original, projected1)
-    0.733798945632
-    >>> gsortedness(original, projected2[:, 1:])
-    0.18462055725
-    >>> gsortedness(original, projectedrnd)
-    -0.050511068452
+
+
+    Parameters
+    ----------
+    X
+        matrix with an instance by row in a given space (often the original one)
+    X_
+        matrix with an instance by row in another given space (often the projected one)
+    metric
+        Stress formula version: metric or nonmetric
+    parallel
+        Parallelize processing when |X|>1000. Might use more memory.
+
+    Returns
+    -------
+
     """
-    result, pvalues = [], []
-    dists_X = pdist(X, metric="sqeuclidean")
-    dists_X_ = pdist(X_, metric="sqeuclidean")
+    xmap = mp.ThreadingPool().imap if parallel and len(X) > 1000 else map
+    # TODO: parallelize cdist in slices?
+    if metric:
+        thread = lambda M, m: cdist(M, M, metric=m)
+        Dsq, D_ = xmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])
+        D = sqrt(Dsq)
+    else:
+        thread = lambda M: rankdata(cdist(M, M, metric="sqeuclidean"), method="average", axis=1)
+        D, D_ = xmap(thread, [X, X_])
+        Dsq = D ** 2
 
-    # For f=weightedtau: scores = -ranks.
-    scores_X = -dists_X
-    scores_X_ = -dists_X_
-
-    corr, pvalue = f(scores_X, scores_X_, **kwargs)
-    result.append(round(corr, 12))
-    pvalues.append(round(pvalue, 12))
-
-    result = np.array(result, dtype=np.float)
-    if return_pvalue:
-        return np.array(list(zip(result, pvalues)))
-    return result[0]
+    sqdiff = (D - D_) ** 2
+    nume = sum(sqdiff)
+    deno = sum(Dsq)
+    result = np.round(sqrt(nume / deno), 12)
+    return result
