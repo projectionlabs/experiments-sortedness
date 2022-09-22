@@ -6,7 +6,7 @@ from numpy import mean, vstack
 from sklearn.datasets import make_blobs
 from sklearn.manifold import trustworthiness
 
-from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness
+from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness, sortedness1
 
 k = 5
 limit = 200
@@ -22,6 +22,7 @@ def tw(X, X_):
 measures = {
     "$T_5$~~~~~~~~trustworthiness": tw,
     "$\\overline{\\lambda}_{\\tau_w}$~~~~~~reciprocal s.": lambda X, X_: mean(rsortedness(X, X_)),
+    # "$\\overline{\\lambda}_{\\tau_w}'$~~~~~~sortedness'": lambda X, X_: mean(sortedness1(X, X_)),
     "$\\lambda_{\\tau_w}$~~~~~~sortedness": lambda X, X_: mean(sortedness(X, X_)),
     "$\\Lambda_{\\tau_w}$~~~~~weighted pairwise s.": lambda X, X_: mean(pwsortedness(X, X_)),
     "$\\Lambda_{\\tau_1}$~~~~~~pairwise s.": lambda X, X_: global_pwsortedness(X, X_)[0],

@@ -7,16 +7,17 @@ from sklearn.decomposition import PCA
 from experimentssortedness.temporary import pwsortedness, rsortedness, global_pwsortedness, stress
 
 d = 30
-n = 15000
+n = 150
 m = (0,) * d
 cov = eye(d)
 rng = np.random.default_rng(seed=0)
 original = rng.multivariate_normal(m, cov, size=n)
 projected1 = PCA(n_components=10).fit_transform(original)
 
-# print(timeit(lambda: pwsortedness(original, projected1, parallel=False), number=1))
-print(timeit(lambda: stress(original, projected1, parallel=False), number=1))
-print(timeit(lambda: stress(original, projected1, parallel=True), number=1))
+print(timeit(lambda: pwsortedness(original, projected1, parallel=False), number=1))
+print(timeit(lambda: pwsortedness(original, projected1, parallel=True), number=1))
+# print(timeit(lambda: stress(original, projected1, parallel=False), number=1))
+# print(timeit(lambda: stress(original, projected1, parallel=True), number=1))
 exit()
 
 

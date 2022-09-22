@@ -3,18 +3,23 @@ This file has the updated version of the proposed measure sortedness.
 It is here to help fixing bugs, but it will be moved to the package when done.
 """
 import gc
-from itertools import repeat, chain
 
 import numpy as np
 import pathos.multiprocessing as mp
-from numpy import eye, mean, sqrt, maximum, minimum
+from numpy import eye, mean, sqrt, minimum, argsort
 from numpy.random import permutation
-from scipy.spatial.distance import cdist, pdist, squareform, sqeuclidean
+from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.stats import weightedtau, rankdata, kendalltau
 from sklearn.decomposition import PCA
 
-from experimentssortedness.parallel import pw_sqeucl
+from experimentssortedness.matrices import index
 from shelchemy.lazy import ichunks
+
+
+def remove_diagonal(X):
+    n_points = len(X)
+    nI = ~eye(n_points, dtype=bool)  # Mask to remove diagonal.
+    return X[nI].reshape(n_points, -1)
 
 
 def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
@@ -54,7 +59,7 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     scores_X_ = -remove_diagonal(sqdist_X_)
 
     for i in range(len(X)):
-        corr, pvalue = f(scores_X[i, :], scores_X_[i, :], **kwargs)
+        corr, pvalue = f(scores_X[i], scores_X_[i], **kwargs)
         result.append(round(corr, 12))
         pvalues.append(round(pvalue, 12))
 
@@ -64,10 +69,71 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     return result
 
 
-def remove_diagonal(X):
-    n_points = len(X)
-    nI = ~eye(n_points, dtype=bool)  # Mask to remove diagonal.
-    return X[nI].reshape(n_points, -1)
+def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
+    """
+    sortedness' (lambda'𝜏w)
+
+    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        [here we are breaking ties by lexicographical order, differently from other functions in the file]
+    >>> import numpy as np
+    >>> from functools import partial
+    >>> from scipy.stats import spearmanr, weightedtau
+    >>> m = (1, 2)
+    >>> cov = eye(2)
+    >>> rng = np.random.default_rng(seed=0)
+    >>> original = rng.multivariate_normal(m, cov, size=12)
+    >>> projected2 = PCA(n_components=2).fit_transform(original)
+    >>> projected1 = PCA(n_components=1).fit_transform(original)
+    >>> np.random.seed(0)
+    >>> projectedrnd = permutation(original)
+
+    >>> r = sortedness1(original, original)
+    >>> min(r), max(r), round(mean(r), 12)
+    (1.0, 1.0, 1.0)
+    >>> r = sortedness1(original, projected2)
+    >>> min(r), round(mean(r), 12), max(r)
+    (1.0, 1.0, 1.0)
+    >>> r = sortedness1(original, projected1)
+    >>> min(r), round(mean(r), 12), max(r)
+    (0.100283116914, 0.324507531866, 0.621992330757)
+    >>> r = sortedness1(original, projected2[:, 1:])
+    >>> min(r), round(mean(r), 12), max(r)
+    (-0.508506647872, 0.122451450028, 0.704705474788)
+    >>> r = sortedness1(original, projectedrnd)
+    >>> min(r), round(mean(r), 12), max(r)
+    (-0.216685979143, 0.073607212115, 0.426596265724)
+    """
+    n = len(X)
+    result, pvalues = [], []
+    sqdist_X = cdist(X, X)
+    sqdist_X_ = cdist(X_, X_)
+    D = remove_diagonal(sqdist_X)
+    D_ = remove_diagonal(sqdist_X_)
+
+    # Calculate indexing and sorting for sector widths.
+    idx = argsort(D, kind="stable", axis=1)
+    S, S_ = index(D, idx), index(D_, idx)
+    S[:, 1:] -= S[:, :-1]
+    S_[:, 1:] -= S_[:, :-1]
+
+    # R, R_ = rankdata(S, axis=1), rankdata(S_, axis=1)
+    # c = 2*(1 - count_nonzero(R-R_, axis=1) / n) - 1
+    # return c
+
+    # Take negative widths to be used as scores.
+    scores = -S
+    scores_ = -S_
+
+    for i in range(len(X)):
+        corr, pvalue = f(scores[i], scores_[i], rank=idx[i], **kwargs)
+        result.append(round(corr, 12))
+        pvalues.append(round(pvalue, 12))
+
+    result = np.array(result, dtype=np.float)
+    if return_pvalues:
+        return np.array(list(zip(result, pvalues)))
+    return result
 
 
 def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=False, **kwargs):
@@ -100,13 +166,12 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=False, **kw
     >>> min(r), max(r), round(mean(r), 12)
     (-0.513199801882, 0.44652260028, 0.042777358461)
     """
-    tmap = mp.ThreadingPool().imap if len(X) > 0 and parallel else map
     pmap = mp.ProcessingPool().imap if len(X) > 0 and (parallel or parallel is None) else map
 
     # TODO: check if parallelization really brings more benefits (CPU) than problems (RAM)
     def thread(M):
         D = cdist(M, M, metric="sqeuclidean")
-        R = rankdata(D, axis=0)
+        R = rankdata(D, axis=0) - 1
         return -remove_diagonal(R)  # For f=weightedtau: scores = -ranks.
 
     scores_X, scores_X_ = pmap(thread, [X, X_])
@@ -150,12 +215,12 @@ def global_pwsortedness(X, X_, parallel=True):
     """
     # TODO: parallelize pdist into a for?
     thread = lambda M: pdist(M, metric="sqeuclidean")
-    xmap = mp.ThreadingPool().imap if parallel else map
-    dists_X, dists_X_ = xmap(thread, [X, X_])
+    tmap = mp.ThreadingPool().imap if parallel else map
+    dists_X, dists_X_ = tmap(thread, [X, X_])
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, f=weightedtau, rankings=True, return_pvalues=False, parallel=True, **kwargs):
+def pwsortedness(X, X_, f=weightedtau, rankings=None, return_pvalues=False, parallel=True, **kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
 
@@ -169,9 +234,8 @@ def pwsortedness(X, X_, f=weightedtau, rankings=True, return_pvalues=False, para
         Ranking correlation function
     rankings
         External importance ranking for each point in relation to all others.
-        Should be a 2d numpy array with one ranking per row.
-        True: calculate internally based on proximity of pair centroid to the point of interest
-        False: do not provide rankings to `f`
+        Should be a 2d numpy array with one ranking per column. Each row represents a pair.
+        None: calculate internally based on proximity of each pair to the point of interest
     return_pvalues
         Flag to include the second item returned by `f`, usually a p-value, in the resulting list
     parallel
@@ -205,20 +269,20 @@ def pwsortedness(X, X_, f=weightedtau, rankings=True, return_pvalues=False, para
     (1.0, 1.0, 1.0)
     >>> r = pwsortedness(original, projected1)
     >>> min(r), round(mean(r), 12), max(r)
-    (0.705228292232, 0.769490925935, 0.812276273024)
+    (0.646666346009, 0.761682319455, 0.831788803323)
     >>> r = pwsortedness(original, projected2[:, 1:])
     >>> min(r), round(mean(r), 12), max(r)
-    (0.152876321633, 0.183289364037, 0.240046100113)
+    (0.160377881152, 0.205647446418, 0.265690049487)
     >>> r = pwsortedness(original, projectedrnd)
     >>> min(r), round(mean(r), 12), max(r)
-    (-0.130051112362, -0.094590524401, -0.065543415145)
+    (-0.144615079553, -0.106565866692, -0.072703466403)
     """
     pmap = mp.ProcessingPool().imap if parallel else map
     tmap = mp.ThreadingPool().imap if parallel else map
     thread = lambda M: -pdist(M, metric="sqeuclidean")
     scores_X, scores_X_ = pmap(thread, [X, X_])
 
-    if rankings is True:
+    if rankings is None:
         D, D_ = tmap(squareform, [scores_X, scores_X_])
         n = len(D)
         m = (n ** 2 - n) // 2
@@ -238,18 +302,18 @@ def pwsortedness(X, X_, f=weightedtau, rankings=True, return_pvalues=False, para
         del E
         del E_
         gc.collect()
+        rank = rankdata(M, axis=0).astype(int) - 1
+        del M
+        gc.collect()
+    else:
+        rank = rankings
 
     def thread(r):
-        if rankings is True:
-            corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
-        elif rankings is False:
-            corr, pvalue = f(scores_X, scores_X_, **kwargs)
-        else:
-            corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
+        corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
         return round(corr, 12), round(pvalue, 12)
 
     result, pvalues = [], []
-    lst = (rankdata(M[:, i]).astype(int) for i in range(len(X)))
+    lst = (rank[:, i] for i in range(len(X)))
     for corrs, pvalue in pmap(thread, lst):
         result.append(corrs)
         pvalues.append(pvalue)
@@ -290,9 +354,9 @@ def stress(X, X_, metric=True, parallel=True, **kwargs):
            0.18098479, 0.18240664, 0.155316  , 0.20012608, 0.15791188,
            0.34756392, 0.25626217])
     >>> stress(original, projected, metric=False)
-    array([0.28449947, 0.25842568, 0.24773341, 0.09558354, 0.22450148,
-           0.23819653, 0.15127226, 0.1167218 , 0.2901905 , 0.14607233,
-           0.31265683, 0.29262076])
+    array([0.33947258, 0.29692937, 0.30478874, 0.10509128, 0.2516135 ,
+           0.2901905 , 0.1662822 , 0.13153341, 0.34299717, 0.164696  ,
+           0.35266095, 0.35276684])
 
 
 
@@ -318,7 +382,7 @@ def stress(X, X_, metric=True, parallel=True, **kwargs):
         Dsq, D_ = xmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])
         D = sqrt(Dsq)
     else:
-        thread = lambda M: rankdata(cdist(M, M, metric="sqeuclidean"), method="average", axis=1)
+        thread = lambda M: rankdata(cdist(M, M, metric="sqeuclidean"), method="average", axis=1) - 1
         D, D_ = xmap(thread, [X, X_])
         Dsq = D ** 2
 
