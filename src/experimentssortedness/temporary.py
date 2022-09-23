@@ -331,7 +331,7 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
 
 def stress(X, X_, metric=True, parallel=True, **kwargs):
     """
-    Kruskal's "Stress Formula 1"
+    Kruskal's "Stress Formula 1" normalized before comparing distances.
     default: Euclidean
 
     >>> import numpy as np
@@ -341,7 +341,7 @@ def stress(X, X_, metric=True, parallel=True, **kwargs):
     >>> cov = eye(2)
     >>> rng = np.random.default_rng(seed=0)
     >>> original = rng.multivariate_normal(mean, cov, size=12)
-    >>> s = stress(original, original)
+    >>> s = stress(original, original*5)
     >>> min(s), max(s), s
     (0.0, 0.0, array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]))
     >>> projected = PCA(n_components=2).fit_transform(original)
@@ -351,13 +351,13 @@ def stress(X, X_, metric=True, parallel=True, **kwargs):
     >>> projected = PCA(n_components=1).fit_transform(original)
     >>> s = stress(original, projected)
     >>> min(s), max(s), s
-    (0.081106807792, 0.347563916162, array([0.29566817, 0.31959501, 0.23577467, 0.08110681, 0.29811345,
-           0.18098479, 0.18240664, 0.155316  , 0.20012608, 0.15791188,
-           0.34756392, 0.25626217]))
+    (0.073462710191, 0.333885390367, array([0.2812499 , 0.31103416, 0.21994448, 0.07346271, 0.2810867 ,
+           0.16411944, 0.17002148, 0.14748528, 0.18341208, 0.14659984,
+           0.33388539, 0.24110857]))
     >>> stress(original, projected)
-    array([0.29566817, 0.31959501, 0.23577467, 0.08110681, 0.29811345,
-           0.18098479, 0.18240664, 0.155316  , 0.20012608, 0.15791188,
-           0.34756392, 0.25626217])
+    array([0.2812499 , 0.31103416, 0.21994448, 0.07346271, 0.2810867 ,
+           0.16411944, 0.17002148, 0.14748528, 0.18341208, 0.14659984,
+           0.33388539, 0.24110857])
     >>> stress(original, projected, metric=False)
     array([0.33947258, 0.29692937, 0.30478874, 0.10509128, 0.2516135 ,
            0.2901905 , 0.1662822 , 0.13153341, 0.34299717, 0.164696  ,
@@ -385,7 +385,9 @@ def stress(X, X_, metric=True, parallel=True, **kwargs):
     if metric:
         thread = lambda M, m: cdist(M, M, metric=m)
         Dsq, D_ = xmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])
+        Dsq /= np.max(Dsq)
         D = sqrt(Dsq)
+        D_ /= np.max(D_)
     else:
         thread = lambda M: rankdata(cdist(M, M, metric="sqeuclidean"), method="average", axis=1) - 1
         D, D_ = xmap(thread, [X, X_])
