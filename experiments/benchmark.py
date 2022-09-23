@@ -1,23 +1,42 @@
 from timeit import timeit
 
 import numpy as np
-from numpy import eye
+from numpy import eye, mean
+from numpy.testing import assert_allclose
 from sklearn.decomposition import PCA
 
 from experimentssortedness.temporary import pwsortedness, rsortedness, global_pwsortedness, stress
 
-d = 30
-n = 150
+n = 250
+d = n // 2
 m = (0,) * d
 cov = eye(d)
 rng = np.random.default_rng(seed=0)
 original = rng.multivariate_normal(m, cov, size=n)
-projected1 = PCA(n_components=10).fit_transform(original)
+projected1 = PCA(n_components=n // 3).fit_transform(original)
 
-print(timeit(lambda: pwsortedness(original, projected1, parallel=False), number=1))
-print(timeit(lambda: pwsortedness(original, projected1, parallel=True), number=1))
-# print(timeit(lambda: stress(original, projected1, parallel=False), number=1))
-# print(timeit(lambda: stress(original, projected1, parallel=True), number=1))
+r = [0, 0]
+
+
+def f():
+    r[0] = pwsortedness(original, projected1, parallel=True)
+    return r[0]
+
+
+print("pyx  ", timeit(f, number=1), sep="\t")
+# print("scipy", timeit(g, number=1), sep="\t")
+# assert_allclose(r[0], r[1])
+print()
+
+# print(timeit(lambda: pwsortedness(original, projected1, parallel=False), number=1))
+# # exit()
+# print()
+# # print(timeit(lambda: stress(original, projected1, parallel=False), number=1))
+# # print(timeit(lambda: stress(original, projected1, parallel=True), number=1))
+# a = pwsortedness(original[:100], projected1[:100], parallel=True)
+# b = pwsortedness(original[:100], projected1[:100], parallel=False)
+# print((a == b).all())
+
 exit()
 
 

@@ -9,12 +9,15 @@ import pathos.multiprocessing as mp
 from numpy import eye, mean, sqrt, minimum, argsort
 from numpy.random import permutation
 from scipy.spatial.distance import cdist, pdist, squareform
-from scipy.stats import weightedtau, rankdata, kendalltau
+from scipy.stats import rankdata, kendalltau, weightedtau
 from sklearn.decomposition import PCA
 
 from experimentssortedness.matrices import index
+from experimentssortedness.wtau import parwtau
 from shelchemy.lazy import ichunks
 
+
+# from experimentssortedness.wtau.wtau import parwtau
 
 def remove_diagonal(X):
     n_points = len(X)
@@ -220,7 +223,7 @@ def global_pwsortedness(X, X_, parallel=True):
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, f=weightedtau, rankings=None, return_pvalues=False, parallel=True, **kwargs):
+def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel=True, **kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
 
@@ -280,7 +283,7 @@ def pwsortedness(X, X_, f=weightedtau, rankings=None, return_pvalues=False, para
     pmap = mp.ProcessingPool().imap if parallel else map
     tmap = mp.ThreadingPool().imap if parallel else map
     thread = lambda M: -pdist(M, metric="sqeuclidean")
-    scores_X, scores_X_ = pmap(thread, [X, X_])
+    scores_X, scores_X_ = tmap(thread, [X, X_])
 
     if rankings is None:
         D, D_ = tmap(squareform, [scores_X, scores_X_])
@@ -308,20 +311,22 @@ def pwsortedness(X, X_, f=weightedtau, rankings=None, return_pvalues=False, para
     else:
         rank = rankings
 
-    def thread(r):
-        corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
-        return round(corr, 12), round(pvalue, 12)
-
-    result, pvalues = [], []
-    lst = (rank[:, i] for i in range(len(X)))
-    for corrs, pvalue in pmap(thread, lst):
-        result.append(corrs)
-        pvalues.append(pvalue)
-
-    result = np.array(result, dtype=np.float)
-    if return_pvalues:
-        return np.array(list(zip(result, pvalues)))
-    return result
+    # if f is None:
+    #     from scipy.stats import weightedtau
+    #     f=weightedtau
+    #
+    #     def thread(r):
+    #         corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
+    #         return round(corr, 12), round(pvalue, 12)
+    #
+    #     result, pvalues = [], []
+    #     lst = (rank[:, i] for i in range(len(X)))
+    #     for corrs,pvalue in pmap(thread, lst):
+    #         result.append(corrs)
+    #         pvalues.append(pvalue)
+    #     result = np.array(result, dtype=np.float)
+    #     return result
+    return np.round(f(scores_X, scores_X_, rank), 12)
 
 
 def stress(X, X_, metric=True, parallel=True, **kwargs):

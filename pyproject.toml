@@ -1,9 +1,10 @@
 [tool.poetry]
 name = "experimentssortedness"
-version = "0.220803.5"
+version = "0.220923.0"
 description = "Comparison of measures of projection quality"
 authors = ["davips <dpsabc@gmail.com>", "Fernando", "Tácito"]
 license = "GPLv3"
+build = "build.py"  # For Cython
 
 [tool.poetry.dependencies]
 python = "^3.10,<4.0"
@@ -25,8 +26,11 @@ sortedness = "^0.220803.1"
 sklearn = "^0.0"
 rustil = "^0.220918.1"
 pathos = "^0.2.9"
+scikit-dimension = "^0.3.2"
+numpy = "^1.23.3"
 
 [tool.poetry.dev-dependencies]
+Cython = "^0.29.27"
 pytest = "^7.1.2"
 pytest-cov = "^3.0.0"
 black = "^22.6.0"
@@ -35,5 +39,5 @@ autoreadme = "^0.2102.20"
 ipython = "^8.4.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "Cython>=0.29.27", "setuptools>=60.8.1"]
 build-backend = "poetry.core.masonry.api"
