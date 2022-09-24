@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 
 from experimentssortedness.temporary import pwsortedness, rsortedness, global_pwsortedness, stress
 
-n = 250
+n = 1000
 d = n // 2
 m = (0,) * d
 cov = eye(d)
