@@ -14,7 +14,7 @@ from scipy.stats import rankdata, kendalltau, weightedtau
 from sklearn.decomposition import PCA
 
 from experimentssortedness.matrices import index
-from experimentssortedness.parallel import rank_alongcol, rank_alongrow
+from experimentssortedness.parallel import rank_alongrow
 from shelchemy.lazy import ichunks
 
 
@@ -222,7 +222,7 @@ def global_pwsortedness(X, X_, parallel=True):
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel=True, **kwargs):
+def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel=True, batches=20, **kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
 
@@ -287,29 +287,23 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
         D, D_ = tmap(squareform, [scores_X, scores_X_])
         n = len(D)
         m = (n ** 2 - n) // 2
-        E = np.zeros((m, n))
-        E_ = np.zeros((m, n))
+        M = np.zeros((m, n))
         c = 0
         for i in range(n - 1):  # a bit slow
             h = n - i - 1
             d = c + h
-            E[c:d] = D[i] + D[i + 1:]
-            E_[c:d] = D_[i] + D_[i + 1:]
+            M[c:d] = minimum(D[i] + D[i + 1:], D_[i] + D_[i + 1:])
             c = d
         del D
         del D_
         gc.collect()
-        M = minimum(E, E_)
-        del E
-        del E_
-        gc.collect()
-        rank = rank_alongrow(M.T, step=40)
-        # rank = ascontiguousarray(rank_alongcol(M, step=40).T)
-        del M
-        gc.collect()
+        M = ascontiguousarray(rank_alongrow(M.T, step=n // batches))
+        # rank = ascontiguousarray(rank_alongcol(M, step=n // batches).T)
+        # del M
+        # gc.collect()
     else:
-        rank = rankings
-    return np.round(f(scores_X, scores_X_, rank), 12)
+        M = rankings
+    return np.round(f(scores_X, scores_X_, M), 12)
 
 
 def stress(X, X_, metric=True, parallel=True, **kwargs):
