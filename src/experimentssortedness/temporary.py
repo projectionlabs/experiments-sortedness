@@ -6,18 +6,17 @@ import gc
 
 import numpy as np
 import pathos.multiprocessing as mp
-from numpy import eye, mean, sqrt, minimum, argsort
+from experimentssortedness.wtau.wtau import parwtau
+from numpy import eye, mean, sqrt, minimum, argsort, ascontiguousarray
 from numpy.random import permutation
 from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.stats import rankdata, kendalltau, weightedtau
 from sklearn.decomposition import PCA
 
 from experimentssortedness.matrices import index
-from experimentssortedness.wtau import parwtau
+from experimentssortedness.parallel import rank_alongcol, rank_alongrow
 from shelchemy.lazy import ichunks
 
-
-# from experimentssortedness.wtau.wtau import parwtau
 
 def remove_diagonal(X):
     n_points = len(X)
@@ -280,11 +279,10 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
     >>> min(r), round(mean(r), 12), max(r)
     (-0.144615079553, -0.106565866692, -0.072703466403)
     """
-    pmap = mp.ProcessingPool().imap if parallel else map
+    # pmap = mp.ProcessingPool().imap if parallel else map
     tmap = mp.ThreadingPool().imap if parallel else map
     thread = lambda M: -pdist(M, metric="sqeuclidean")
     scores_X, scores_X_ = tmap(thread, [X, X_])
-
     if rankings is None:
         D, D_ = tmap(squareform, [scores_X, scores_X_])
         n = len(D)
@@ -292,7 +290,7 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
         E = np.zeros((m, n))
         E_ = np.zeros((m, n))
         c = 0
-        for i in range(n - 1):
+        for i in range(n - 1):  # a bit slow
             h = n - i - 1
             d = c + h
             E[c:d] = D[i] + D[i + 1:]
@@ -305,27 +303,12 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
         del E
         del E_
         gc.collect()
-        rank = rankdata(M, axis=0).astype(int) - 1
+        rank = rank_alongrow(M.T, step=40)
+        # rank = ascontiguousarray(rank_alongcol(M, step=40).T)
         del M
         gc.collect()
     else:
         rank = rankings
-
-    # if f is None:
-    #     from scipy.stats import weightedtau
-    #     f=weightedtau
-    #
-    #     def thread(r):
-    #         corr, pvalue = f(scores_X, scores_X_, rank=r, **kwargs)
-    #         return round(corr, 12), round(pvalue, 12)
-    #
-    #     result, pvalues = [], []
-    #     lst = (rank[:, i] for i in range(len(X)))
-    #     for corrs,pvalue in pmap(thread, lst):
-    #         result.append(corrs)
-    #         pvalues.append(pvalue)
-    #     result = np.array(result, dtype=np.float)
-    #     return result
     return np.round(f(scores_X, scores_X_, rank), 12)
 
 

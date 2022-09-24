@@ -1137,6 +1137,14 @@ optional = false
 python-versions = ">=3.7"
 
 [[package]]
+name = "sciagraph"
+version = "2022.7.3"
+description = "A production-speed performance and memory profiler for data batch processing applications."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "scikit-dimension"
 version = "0.3.2"
 description = "scikit-dimension is a Python module for intrinsic dimension estimation built according to the scikit-learn API and distributed under the 3-Clause BSD license.."
@@ -1438,7 +1446,7 @@ python-versions = ">=3.4"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10,<4.0"
-content-hash = "7f98b498d0a45729c57dc412638613cbe466ea5dc20d46e6e51d45cd599649e9"
+content-hash = "19ecc50bd57eda55dd52b99a16c257d1d76fa572fd0681dc49bd24aac9093004"
 
 [metadata.files]
 ansi2html = [
@@ -2702,6 +2710,12 @@ rustil = [
     {file = "rustil-0.220918.1-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:6f1091d98c5b483faca2ac23eae5a3d68f48f2365ecd6cecd0da7f4850ac96ac"},
     {file = "rustil-0.220918.1-pp37-pypy37_pp73-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:71569fb6c61940d7e0a318518c7a3ac2ad39d633ea1660ec0e9986f5d6f0cfa3"},
     {file = "rustil-0.220918.1.tar.gz", hash = "sha256:523e3a584a3d5d1305b79d1c952a2252529bfa65becff3dca9a5c868c3407867"},
+]
+sciagraph = [
+    {file = "sciagraph-2022.7.3-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:fb1bb63430cdf790a4542a260d94d33d5aa69adce428260e03e7dafd9ba872e3"},
+    {file = "sciagraph-2022.7.3-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:d0f2e57f6b7fbe57fdc9ef221c09ec8466a13c0082f465926805b0b391c8dc33"},
+    {file = "sciagraph-2022.7.3-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:5de030b767e27a277c7bae50b89c066e019baa9e98a8501e434a07757d94f9ab"},
+    {file = "sciagraph-2022.7.3-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:c387532374e68689a649bf75712d4747c1f119f2225fe8a3a1fab7b75d6f5902"},
 ]
 scikit-dimension = [
     {file = "scikit-dimension-0.3.2.tar.gz", hash = "sha256:90dc045e1c69e5afb855d1655660e79f9928effc53f1a97af6d6dbf57a970ba2"},
