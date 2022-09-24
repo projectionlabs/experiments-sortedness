@@ -297,7 +297,7 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
         del D
         del D_
         gc.collect()
-        M = ascontiguousarray(rank_alongrow(M.T, step=n // batches))
+        M = rank_alongrow(M.T, step=n // batches)
         # rank = ascontiguousarray(rank_alongcol(M, step=n // batches).T)
         # del M
         # gc.collect()

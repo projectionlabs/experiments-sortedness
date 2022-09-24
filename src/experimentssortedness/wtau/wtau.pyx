@@ -182,6 +182,7 @@ def parwtau(ordered[::1] x, ordered[::1] y, intp_t[:,::1] ranks):
 
     cdef int64_t i, r
     for i in prange(m, nogil=True):
+        # printf("%d\n", i)
     # for i in range(m):
         # with gil:
         # print(i, ranks.shape)

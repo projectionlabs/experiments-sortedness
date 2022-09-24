@@ -8,48 +8,48 @@ from scipy.stats import rankdata
 from shelchemy.lazy import ichunks
 
 
-def rank_alongrow(X, method="average", step=10):
-    n, m = X.shape
-    if step >= n or step < 1:
-        step = 1
-
-    def f(j):
-        X[j:j + step] = rankdata(X[j:j + step], axis=1, method=method)
-
-    jobs = mp.ThreadingPool().imap(f, range(0, n, step))
-    list(jobs)
-    return X.astype(int) - 1
+# def rank_alongrow(X, method="average", step=10):
+#     n, m = X.shape
+#     if step >= n or step < 1:
+#         step = 1
+#
+#     def f(j):
+#         X[j:j + step] = rankdata(X[j:j + step], axis=1, method=method)
+#
+#     jobs = mp.ThreadingPool().imap(f, range(0, n, step))
+#     list(jobs)
+#     return X.astype(int) - 1
+#
+#
+# def rank_alongcol(X, method="average", step=10):
+#     n, m = X.shape
+#     if step >= n or step < 1:
+#         step = 1
+#
+#     def f(j):
+#         X[:, j:j + step] = rankdata(X[:, j:j + step], axis=0, method=method)
+#
+#     jobs = mp.ThreadingPool().imap(f, range(0, n, step))
+#     list(jobs)
+#     return X.astype(int) - 1
 
 
 def rank_alongcol(X, method="average", step=10):
-    n, m = X.shape
-    if step >= n or step < 1:
-        step = 1
-
-    def f(j):
-        X[:, j:j + step] = rankdata(X[:, j:j + step], axis=0, method=method)
-
-    jobs = mp.ThreadingPool().imap(f, range(0, n, step))
-    list(jobs)
-    return X.astype(int) - 1
+    n = len(X)
+    if  step > n or step<1:
+        step = n
+    it = (X[:, j:j + step] for j in range(0, n, step))
+    jobs = mp.ThreadingPool().imap(lambda M: rankdata(M, axis=0, method=method), it)
+    return np.hstack(list(jobs)).astype(int) - 1
 
 
-# def rank_alongcol(X, method="average", step=10):
-#     n = len(X)
-#     if  step > n or step<1:
-#         step = n
-#     it = (X[:, j:j + step] for j in range(0, n, step))
-#     jobs = mp.ThreadingPool().imap(lambda M: rankdata(M, axis=0, method=method), it)
-#     return np.hstack(list(jobs)).astype(int) - 1
-#
-#
-# def rank_alongrow(X, method="average", step=10):
-#     n = len(X)
-#     if  step > n or step <1:
-#         step = n
-#     it = (X[j:j + step] for j in range(0, n, step))
-#     jobs = mp.ThreadingPool().imap(lambda M: rankdata(M, axis=1, method=method), it)
-#     return np.vstack(list(jobs)).astype(int) - 1
+def rank_alongrow(X, method="average", step=10):
+    n = len(X)
+    if  step > n or step <1:
+        step = n
+    it = (X[j:j + step] for j in range(0, n, step))
+    jobs = mp.ThreadingPool().imap(lambda M: rankdata(M, axis=1, method=method), it)
+    return np.vstack(list(jobs)).astype(int) - 1
 
 
 # set_num_threads(16)
