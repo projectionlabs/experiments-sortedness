@@ -5,7 +5,7 @@ from numpy import eye, mean
 from numpy.testing import assert_allclose
 from sklearn.decomposition import PCA
 
-from experimentssortedness.temporary import pwsortedness, rsortedness, global_pwsortedness, stress
+from experimentssortedness.temporary import pwsortedness, rsortedness, global_pwsortedness, stress, sortedness
 
 n = 1000
 d = n // 2
@@ -19,7 +19,7 @@ r = [0, 0]
 
 
 def f():
-    r[0] = pwsortedness(original, projected1, parallel=True)
+    r[0] = sortedness(original, projected1, parallel=True)
     return r[0]
 
 

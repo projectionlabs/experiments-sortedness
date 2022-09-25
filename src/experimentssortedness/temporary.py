@@ -6,7 +6,6 @@ import gc
 
 import numpy as np
 import pathos.multiprocessing as mp
-from experimentssortedness.wtau.wtau import parwtau
 from numpy import eye, mean, sqrt, minimum, argsort, ascontiguousarray
 from numpy.random import permutation
 from scipy.spatial.distance import cdist, pdist, squareform
@@ -14,7 +13,8 @@ from scipy.stats import rankdata, kendalltau, weightedtau
 from sklearn.decomposition import PCA
 
 from experimentssortedness.matrices import index
-from experimentssortedness.parallel import rank_alongrow
+from experimentssortedness.parallel import rank_alongrow, rank_alongcol
+from experimentssortedness.wtau import parwtau
 from shelchemy.lazy import ichunks
 
 
@@ -24,10 +24,12 @@ def remove_diagonal(X):
     return X[nI].reshape(n_points, -1)
 
 
-def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
+def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parallel_kwargs=None, **kwargs):
     """
     # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
         this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        values can be lower due to that; including perfect projections.
+        that is, avoid penalizing a correct projection because of a tie
     >>> ll = [[i] for i in range(17)]
     >>> a, b = np.array(ll), np.array(ll[0:1] + list(reversed(ll[1:])))
     >>> b.ravel()
@@ -52,14 +54,18 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     >>> round(mean(r), 12)
     0.070104521222
     """
+    if parallel_kwargs is None:
+        parallel_kwargs = {}
     result, pvalues = [], []
-    sqdist_X = cdist(X, X)
-    sqdist_X_ = cdist(X_, X_)
+
+    xmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
+    sqdist_X, sqdist_X_ = xmap(lambda M: cdist(M, M), [X, X_])
 
     # For f=weightedtau: scores = -ranks.
     scores_X = -remove_diagonal(sqdist_X)
     scores_X_ = -remove_diagonal(sqdist_X_)
 
+    # TODO: Offer option to use parwtau (when/if it becomes a working thing)
     for i in range(len(X)):
         corr, pvalue = f(scores_X[i], scores_X_[i], **kwargs)
         result.append(round(corr, 12))
@@ -77,6 +83,8 @@ def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
 
     # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
         this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        values can be lower due to that; including perfect projections.
+        that is, avoid penalizing a correct projection because of a tie
         [here we are breaking ties by lexicographical order, differently from other functions in the file]
     >>> import numpy as np
     >>> from functools import partial
@@ -119,7 +127,7 @@ def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     S[:, 1:] -= S[:, :-1]
     S_[:, 1:] -= S_[:, :-1]
 
-    # R, R_ = rankdata(S, axis=1), rankdata(S_, axis=1)
+    # R, R_ = rankdata(S, axis=1)as, rankdata(S_, axis=1)astype
     # c = 2*(1 - count_nonzero(R-R_, axis=1) / n) - 1
     # return c
 
@@ -127,7 +135,7 @@ def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     scores = -S
     scores_ = -S_
 
-    for i in range(len(X)):
+    for i in range(n):
         corr, pvalue = f(scores[i], scores_[i], rank=idx[i], **kwargs)
         result.append(round(corr, 12))
         pvalues.append(round(pvalue, 12))
@@ -138,13 +146,15 @@ def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     return result
 
 
-def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=False, **kwargs):
+def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, **kwargs):
     """
     Reciprocal sortedness: consider the neighborhood realtion the other way around.
     Might be good to assess the effect of a projection on hubness, and also to serve as a loss function for a custom projection algorithm.
     Break ties by comparing distances. In case of a new tie, break it by lexicographical order.
-    # TODO: add flag to break not so rare cases of ties that persist after projection (implies a much slower algorithm)
-        this is needed to avoid penalizing a correct projection because of a tie
+    # TODO: add flag to break (not so rare cases of) ties that persist after projection (implies a much slower algorithm)
+        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        values can be lower due to that; including perfect projections.
+        that is, avoid penalizing a correct projection because of a tie
 
     >>> ll = [[i, ] for i in range(17)]
     >>> a, b = np.array(ll), np.array(ll[0:1] + list(reversed(ll[1:])))
@@ -161,28 +171,29 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=False, **kw
     array([ 2, 10,  3, 11,  0,  4,  7,  5, 16, 12, 13,  6,  9, 14,  8,  1, 15])
     >>> r = rsortedness(b, a)
     >>> r
-    array([ 0.20340735, -0.28571498,  0.14498561, -0.24662663,  0.09057659,
-            0.30037263,  0.01412381,  0.18679486, -0.13212791,  0.28692565,
-            0.4465226 , -0.17871893,  0.2020813 ,  0.28089447, -0.16861842,
-           -0.5131998 ,  0.0955369 ])
+    array([ 0.20340735, -0.28996097,  0.14889235, -0.27620087,  0.09057659,
+            0.2807414 ,  0.02338712,  0.21883492, -0.13212791,  0.27294288,
+            0.43250004, -0.19405479,  0.17832715,  0.26649029, -0.16861842,
+           -0.44989766,  0.16413694])
     >>> min(r), max(r), round(mean(r), 12)
-    (-0.513199801882, 0.44652260028, 0.042777358461)
+    (-0.449897660668, 0.4325000425, 0.045257436362)
     """
-    pmap = mp.ProcessingPool().imap if len(X) > 0 and (parallel or parallel is None) else map
+    tmap = mp.ThreadingPool().imap if parallel or parallel is None else map
+    pmap = mp.ProcessingPool().imap if parallel or parallel is None else map
+    npoints = len(X)
+    D, D_ = tmap(lambda M: cdist(M, M, metric="sqeuclidean"), [X, X_])
+    R, R_ = (rank_alongcol(M, parallel=parallel) for M in [D, D_])
+    scores_X, scores_X_ = tmap(lambda M: -remove_diagonal(M), [R, R_])  # For f=weightedtau: scores = -ranks.
 
-    # TODO: check if parallelization really brings more benefits (CPU) than problems (RAM)
-    def thread(M):
-        D = cdist(M, M, metric="sqeuclidean")
-        R = rankdata(D, axis=0) - 1
-        return -remove_diagonal(R)  # For f=weightedtau: scores = -ranks.
-
-    scores_X, scores_X_ = pmap(thread, [X, X_])
+    if hasattr(f, "isparwtau"):
+        raise Exception("disagree with other version")
+        return parwtau(scores_X, scores_X_, npoints, parallel=parallel, **kwargs)
 
     def thread(l):
         lst1 = []
         lst2 = []
         for i in l:
-            corr, pvalue = f(scores_X[i, :], scores_X_[i, :], **kwargs)
+            corr, pvalue = f(scores_X[i], scores_X_[i], **kwargs)
             lst1.append(round(corr, 12))
             lst2.append(round(pvalue, 12))
         return lst1, lst2
@@ -199,9 +210,14 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=False, **kw
     return result
 
 
-def global_pwsortedness(X, X_, parallel=True):
+def global_pwsortedness(X, X_, parallel=True, **parallel_kwargs):
     """
     Global pairwise sortedness (Λ𝜏1)
+
+    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        values can be lower due to that; including perfect projections.
+        that is, avoid penalizing a correct projection because of a tie
 
     Parameters
     ----------
@@ -217,14 +233,19 @@ def global_pwsortedness(X, X_, parallel=True):
     """
     # TODO: parallelize pdist into a for?
     thread = lambda M: pdist(M, metric="sqeuclidean")
-    tmap = mp.ThreadingPool().imap if parallel else map
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
     dists_X, dists_X_ = tmap(thread, [X, X_])
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel=True, batches=20, **kwargs):
+def pwsortedness(X, X_, rankings=None, parallel=True, batches=10, debug=False, **parallel_kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
+
+    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        values can be lower due to that; including perfect projections.
+        that is, avoid penalizing a correct projection because of a tie
 
     Parameters
     ----------
@@ -280,33 +301,39 @@ def pwsortedness(X, X_, f=parwtau, rankings=None, return_pvalues=False, parallel
     (-0.144615079553, -0.106565866692, -0.072703466403)
     """
     # pmap = mp.ProcessingPool().imap if parallel else map
-    tmap = mp.ThreadingPool().imap if parallel else map
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
+    npoints = len(X)
+    if debug: print(1)
     thread = lambda M: -pdist(M, metric="sqeuclidean")
     scores_X, scores_X_ = tmap(thread, [X, X_])
+    if debug: print(2)
     if rankings is None:
         D, D_ = tmap(squareform, [scores_X, scores_X_])
+        if debug: print(3)
         n = len(D)
         m = (n ** 2 - n) // 2
         M = np.zeros((m, n))
+        if debug: print(4)
         c = 0
-        for i in range(n - 1):  # a bit slow
+        for i in range(n - 1):  # a bit slow, but only a fraction of wtau (~5%)
             h = n - i - 1
             d = c + h
             M[c:d] = minimum(D[i] + D[i + 1:], D_[i] + D_[i + 1:])
             c = d
+        if debug: print(5)
         del D
         del D_
         gc.collect()
-        M = rank_alongrow(M.T, step=n // batches)
-        # rank = ascontiguousarray(rank_alongcol(M, step=n // batches).T)
-        # del M
-        # gc.collect()
+        if debug: print(6)
+        M = rank_alongrow(M.T, step=n // batches, parallel=parallel, **parallel_kwargs).T
+        if debug: print(7)
+        # M = rank_alongcol(M, step=n // batches)  # Slower and RAM heavier.
     else:
         M = rankings
-    return np.round(f(scores_X, scores_X_, M), 12)
+    return np.round(parwtau(scores_X, scores_X_, npoints, M, parallel=parallel, **parallel_kwargs), 12)
 
 
-def stress(X, X_, metric=True, parallel=True, **kwargs):
+def stress(X, X_, metric=True, parallel=True, **parallel_kwargs):
     """
     Kruskal's "Stress Formula 1" normalized before comparing distances.
     default: Euclidean
@@ -357,11 +384,11 @@ def stress(X, X_, metric=True, parallel=True, **kwargs):
     -------
 
     """
-    xmap = mp.ThreadingPool().imap if parallel and len(X) > 1000 else map
+    xmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
     # TODO: parallelize cdist in slices?
     if metric:
         thread = lambda M, m: cdist(M, M, metric=m)
-        Dsq, D_ = xmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])
+        Dsq, D_ = xmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])  # Slowest part (~98%).
         Dsq /= np.max(Dsq)
         D = sqrt(Dsq)
         D_ /= np.max(D_)

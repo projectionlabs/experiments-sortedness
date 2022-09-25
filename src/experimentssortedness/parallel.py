@@ -14,7 +14,7 @@ from shelchemy.lazy import ichunks
 #         step = 1
 #
 #     def f(j):
-#         X[j:j + step] = rankdata(X[j:j + step], axis=1, method=method)
+#         X[j:j + step] = rankdata(X[j:j + step], axis=1, method=method)astype
 #
 #     jobs = mp.ThreadingPool().imap(f, range(0, n, step))
 #     list(jobs)
@@ -27,29 +27,31 @@ from shelchemy.lazy import ichunks
 #         step = 1
 #
 #     def f(j):
-#         X[:, j:j + step] = rankdata(X[:, j:j + step], axis=0, method=method)
+#         X[:, j:j + step] = rankdata(X[:, j:j + step], axis=0, method=method)astype
 #
 #     jobs = mp.ThreadingPool().imap(f, range(0, n, step))
 #     list(jobs)
 #     return X.astype(int) - 1
 
 
-def rank_alongcol(X, method="average", step=10):
+def rank_alongcol(X, method="average", step=10, parallel=True, **parallel_kwargs):
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
     n = len(X)
-    if  step > n or step<1:
+    if step > n or step < 1:
         step = n
     it = (X[:, j:j + step] for j in range(0, n, step))
-    jobs = mp.ThreadingPool().imap(lambda M: rankdata(M, axis=0, method=method), it)
+    jobs = tmap(lambda M: rankdata(M, axis=0, method=method), it)
     return np.hstack(list(jobs)).astype(int) - 1
 
 
-def rank_alongrow(X, method="average", step=10):
+def rank_alongrow(X, method="average", step=10, parallel=True, **parallel_kwargs):
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
     n = len(X)
-    if  step > n or step <1:
+    if step > n or step < 1:
         step = n
     it = (X[j:j + step] for j in range(0, n, step))
-    jobs = mp.ThreadingPool().imap(lambda M: rankdata(M, axis=1, method=method), it)
-    return np.vstack(list(jobs)).astype(int) - 1
+    jobs = tmap(lambda M: rankdata(M, axis=1, method=method), it)
+    return np.vstack(list(jobs)).astype(np.int) - 1
 
 
 # set_num_threads(16)
@@ -72,9 +74,9 @@ def rank_alongrow(X, method="average", step=10):
 #     return scores, scores_
 
 
-def pw_sqeucl(M):
+def pw_sqeucl(M, **parallel_kwargs):
     n = len(M)
     li = (M[i] for i in range(n) for j in range(i + 1, n))
     lj = (M[j] for i in range(n) for j in range(i + 1, n))
-    jobs = mp.ThreadingPool().imap(lambda l, g: [sqeuclidean(a, b) for a, b in zip(l, g)], ichunks(li, 20, asgenerators=False), ichunks(lj, 20, asgenerators=False))
+    jobs = mp.ThreadingPool(**parallel_kwargs).imap(lambda l, g: [sqeuclidean(a, b) for a, b in zip(l, g)], ichunks(li, 20, asgenerators=False), ichunks(lj, 20, asgenerators=False))
     return np.array(list(chain(*jobs)))
