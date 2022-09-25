@@ -24,11 +24,11 @@ def parwtau(scoresX, scoresX_, npoints, R=True, parallel=True, **kwargs):
             # print("s", i)
             p = next(perms_gen)
             if R is True or R is None:
-                r = p.copy()  # ?
+                r = p.copy()
                 # print(r)
                 _invert_in_place(r)
             elif R is False:
-                r = arange(scores.size, dtype=intp)
+                r = arange(npositions, dtype=intp)
             else:
                 r = R[:, i]
             yield r

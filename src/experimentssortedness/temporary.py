@@ -6,7 +6,7 @@ import gc
 
 import numpy as np
 import pathos.multiprocessing as mp
-from numpy import eye, mean, sqrt, minimum, argsort, ascontiguousarray
+from numpy import eye, mean, sqrt, minimum, argsort
 from numpy.random import permutation
 from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.stats import rankdata, kendalltau, weightedtau
@@ -24,7 +24,7 @@ def remove_diagonal(X):
     return X[nI].reshape(n_points, -1)
 
 
-def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parallel_kwargs=None, **kwargs):
+def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parallel_n_trigger=500, parallel_kwargs=None, **kwargs):
     """
     # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
         this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
@@ -57,9 +57,10 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parall
     if parallel_kwargs is None:
         parallel_kwargs = {}
     result, pvalues = [], []
+    npoints = len(X)
 
-    xmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
-    sqdist_X, sqdist_X_ = xmap(lambda M: cdist(M, M), [X, X_])
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel and npoints > parallel_n_trigger else map
+    sqdist_X, sqdist_X_ = tmap(lambda M: cdist(M, M), [X, X_])
 
     # For f=weightedtau: scores = -ranks.
     scores_X = -remove_diagonal(sqdist_X)
@@ -146,7 +147,7 @@ def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
     return result
 
 
-def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, **kwargs):
+def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parallel_n_trigger=500, parallel_kwargs=None, **kwargs):
     """
     Reciprocal sortedness: consider the neighborhood realtion the other way around.
     Might be good to assess the effect of a projection on hubness, and also to serve as a loss function for a custom projection algorithm.
@@ -178,13 +179,16 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, **kwa
     >>> min(r), max(r), round(mean(r), 12)
     (-0.449897660668, 0.4325000425, 0.045257436362)
     """
-    tmap = mp.ThreadingPool().imap if parallel or parallel is None else map
-    pmap = mp.ProcessingPool().imap if parallel or parallel is None else map
+    if parallel_kwargs is None:
+        parallel_kwargs = {}
     npoints = len(X)
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel and npoints > parallel_n_trigger else map
+    pmap = mp.ProcessingPool(**parallel_kwargs).imap if parallel and npoints > parallel_n_trigger else map
     D, D_ = tmap(lambda M: cdist(M, M, metric="sqeuclidean"), [X, X_])
     R, R_ = (rank_alongcol(M, parallel=parallel) for M in [D, D_])
     scores_X, scores_X_ = tmap(lambda M: -remove_diagonal(M), [R, R_])  # For f=weightedtau: scores = -ranks.
-
+    # tmap = pmap
+    # pmap = tmap
     if hasattr(f, "isparwtau"):
         raise Exception("disagree with other version")
         return parwtau(scores_X, scores_X_, npoints, parallel=parallel, **kwargs)
@@ -199,7 +203,7 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, **kwa
         return lst1, lst2
 
     result, pvalues = [], []
-    jobs = pmap(thread, ichunks(range(len(X)), 15, asgenerators=False))
+    jobs = pmap(thread, ichunks(range(npoints), 15, asgenerators=False))
     for corrs, pvalues in jobs:
         result.extend(corrs)
         pvalues.extend(pvalues)
@@ -210,7 +214,7 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, **kwa
     return result
 
 
-def global_pwsortedness(X, X_, parallel=True, **parallel_kwargs):
+def global_pwsortedness(X, X_, parallel=True, parallel_n_trigger=10000, **parallel_kwargs):
     """
     Global pairwise sortedness (Λ𝜏1)
 
@@ -233,12 +237,13 @@ def global_pwsortedness(X, X_, parallel=True, **parallel_kwargs):
     """
     # TODO: parallelize pdist into a for?
     thread = lambda M: pdist(M, metric="sqeuclidean")
-    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
+    npoints = len(X)
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel and npoints > parallel_n_trigger else map
     dists_X, dists_X_ = tmap(thread, [X, X_])
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, rankings=None, parallel=True, batches=10, debug=False, **parallel_kwargs):
+def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, batches=10, debug=False, **parallel_kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
 
@@ -300,9 +305,8 @@ def pwsortedness(X, X_, rankings=None, parallel=True, batches=10, debug=False, *
     >>> min(r), round(mean(r), 12), max(r)
     (-0.144615079553, -0.106565866692, -0.072703466403)
     """
-    # pmap = mp.ProcessingPool().imap if parallel else map
-    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
     npoints = len(X)
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel and npoints > parallel_n_trigger else map
     if debug: print(1)
     thread = lambda M: -pdist(M, metric="sqeuclidean")
     scores_X, scores_X_ = tmap(thread, [X, X_])
@@ -333,7 +337,7 @@ def pwsortedness(X, X_, rankings=None, parallel=True, batches=10, debug=False, *
     return np.round(parwtau(scores_X, scores_X_, npoints, M, parallel=parallel, **parallel_kwargs), 12)
 
 
-def stress(X, X_, metric=True, parallel=True, **parallel_kwargs):
+def stress(X, X_, metric=True, parallel=True, parallel_size_trigger=10000, **parallel_kwargs):
     """
     Kruskal's "Stress Formula 1" normalized before comparing distances.
     default: Euclidean
@@ -384,17 +388,17 @@ def stress(X, X_, metric=True, parallel=True, **parallel_kwargs):
     -------
 
     """
-    xmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel and X.size > parallel_size_trigger else map
     # TODO: parallelize cdist in slices?
     if metric:
         thread = lambda M, m: cdist(M, M, metric=m)
-        Dsq, D_ = xmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])  # Slowest part (~98%).
+        Dsq, D_ = tmap(thread, [X, X_], ["sqeuclidean", "Euclidean"])  # Slowest part (~98%).
         Dsq /= np.max(Dsq)
         D = sqrt(Dsq)
         D_ /= np.max(D_)
     else:
         thread = lambda M: rankdata(cdist(M, M, metric="sqeuclidean"), method="average", axis=1) - 1
-        D, D_ = xmap(thread, [X, X_])
+        D, D_ = tmap(thread, [X, X_])
         Dsq = D ** 2
 
     sqdiff = (D - D_) ** 2
