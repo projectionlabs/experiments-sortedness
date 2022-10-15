@@ -41,12 +41,13 @@ measures = {
     # "gsortedness_w": lambda X, X_: gsortedness(X, X_),
 }
 
+xlabel = "Cluster Size"
 a, b, c = (-distance, 0), (0, 0), (distance, 0)
 d = {"Cluster Size": [int(x) for x in gp[2, 2.35, ..., limit]]}
 for m, f in measures.items():
     print(m)
     d[m] = []
-    for n in d["Cluster Size"]:
+    for n in d[xlabel]:
         print(n)
         X, y = make_blobs(
             n_samples=3 * n, cluster_std=[std, std, std], centers=[a, b, c],
@@ -56,6 +57,24 @@ for m, f in measures.items():
         X_ = vstack((X[:n, :], X[n:2 * n, :] + dx, X[2 * n:, :] - dx))
         d[m].append(f(X, X_))
 
+print("---------------------_")
+_, ax = plt.subplots(figsize=(15, 5))
 df = pd.DataFrame(d)
-df.set_index("Cluster Size").plot()
+df = df.set_index(xlabel)  # .plot()
+# ax.set_title('Loss curve', fontsize=15)
+plt.rcParams["font.size"] = 23
+for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+    item.set_fontsize(plt.rcParams["font.size"])
+for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
+    ("dotted", 1, "blue"),
+    ("dotted", 2, "orange"),
+    ("dotted", 2, "black"),
+    ("-.", 2, "red"),
+    ("dashed", 2, "purple"),
+    ("dashed", 1, "brown"),
+]):
+    print("\n" + ylabel)
+    df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=True, fontsize=plt.rcParams["font.size"])
+
+plt.tight_layout()
 plt.show()

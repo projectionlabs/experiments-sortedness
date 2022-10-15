@@ -57,7 +57,7 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parall
     >>> round(mean(r), 12)
     0.040100605153
     """
-    if f.isweightedtau and "rank" not in kwargs:
+    if hasattr(f, "isweightedtau") and f.isweightedtau and "rank" not in kwargs:
         kwargs["rank"] = None
     if parallel_kwargs is None:
         parallel_kwargs = {}
@@ -115,7 +115,7 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, paral
     >>> min(r), max(r), round(mean(r), 12)
     (-0.582915181328, 0.480765206133, 0.087284118913)
     """
-    if f.isweightedtau and "rank" not in kwargs:
+    if hasattr(f, "isweightedtau") and f.isweightedtau and "rank" not in kwargs:
         kwargs["rank"] = None
     if parallel_kwargs is None:
         parallel_kwargs = {}

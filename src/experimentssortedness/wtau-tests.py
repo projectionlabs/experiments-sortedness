@@ -159,7 +159,7 @@ def none():
 
 
     >>> # rank=None (scores are reversed ranking)
-    >>> f = lambda a,b: round(weightedtau(-a, -b, rank=None, weigher=lambda x:1/(1+x))[0], 12)
+    >>> f = lambda a,b: round(weightedtau(-a, -b, rank=None)[0], 12)
 
     >>> # -1.0              Total reversion.
     >>> a, b = np.array(l), np.array(list(reversed(l)))
@@ -303,3 +303,22 @@ def none():
     0.995590867976
     """
     pass
+
+
+
+"""
+intruso toma lugar do mais próximo
+    0.21128423268
+apenas põe intruso no topo
+    0.329870949736
+intruso toma lugar do 2o mais próximo
+    0.558670392162
+intruso toma lugar do 3o mais próximo
+    0.688004931539
+perde mais próximo
+    0.842933585279
+Swap first two.
+    0.945487094974
+Swap last two.
+    0.995590867976
+"""

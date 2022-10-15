@@ -4,7 +4,6 @@ import pathos.multiprocessing as mp
 from numpy import lexsort, array, empty, intp, arange
 
 from .wtau import _weightedrankedtau, _invert_in_place  # wtau.pyx
-from pprint import pprint
 
 
 # TODO Confirm scipy LICENSE attribution for pyx
