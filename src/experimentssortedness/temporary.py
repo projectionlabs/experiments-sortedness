@@ -13,7 +13,7 @@ from scipy.stats import rankdata, kendalltau, weightedtau
 from sklearn.decomposition import PCA
 
 from experimentssortedness.matrices import index
-from experimentssortedness.parallel import rank_alongrow, rank_alongcol
+from experimentssortedness.parallel import rank_alongrow, rank_alongcol, argsort_alongrow
 from experimentssortedness.wtau import parwtau
 from shelchemy.lazy import ichunks
 
@@ -181,7 +181,7 @@ def global_pwsortedness(X, X_, parallel=True, parallel_n_trigger=10000, **parall
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, batches=10, debug=False, **parallel_kwargs):
+def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, batches=10, debug=False, cutoff=1000, **parallel_kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
 
@@ -275,7 +275,7 @@ def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, ba
         del M
         gc.collect()
         if debug: print(7)
-        r = np.round(parwtau(scores_X, scores_X_, npoints, R, parallel=parallel, **parallel_kwargs), 12)
+        res = np.round(parwtau(scores_X, scores_X_, npoints, R, parallel=parallel, **parallel_kwargs), 12)
         del R
         gc.collect()
 
@@ -289,10 +289,11 @@ def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, ba
         # del R_
         # gc.collect()
     else:
-        R, R_ = rankings
-        r, r_ = R, R_
+        # R, R_ = rankings
+        # r, r_ = R, R_
+        r = 0
         raise NotImplemented
-    return (r + r) / 2
+    return res
 
 
 def stress(X, X_, metric=True, parallel=True, parallel_size_trigger=10000, **parallel_kwargs):

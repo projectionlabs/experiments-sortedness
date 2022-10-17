@@ -2,6 +2,7 @@ from itertools import chain
 
 import numpy as np
 import pathos.multiprocessing as mp
+from numpy import argsort
 from scipy.spatial.distance import sqeuclidean
 from scipy.stats import rankdata
 
@@ -52,6 +53,17 @@ def rank_alongrow(X, method="average", step=10, parallel=True, **parallel_kwargs
     it = (X[j:j + step] for j in range(0, n, step))
     jobs = tmap(lambda M: rankdata(M, axis=1, method=method), it)
     return np.vstack(list(jobs)).astype(np.int) - 1
+
+
+def argsort_alongrow(X, step=10, parallel=True, **parallel_kwargs):
+    tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel else map
+    n = len(X)
+    if step > n or step < 1:
+        step = n
+    it = (X[j:j + step] for j in range(0, n, step))
+    jobs = tmap(lambda M: argsort(M, axis=1, kind="stable"), it)
+    # jobs = tmap(lambda M: rankdata(M, axis=1, method=method), it)
+    return np.vstack(list(jobs))
 
 
 # set_num_threads(16)
