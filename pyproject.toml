@@ -28,6 +28,7 @@ rustil = "^0.220918.1"
 pathos = "^0.2.9"
 scikit-dimension = "^0.3.2"
 numpy = "^1.23.3"
+seaborn = "^0.12.0"
 
 [tool.poetry.dev-dependencies]
 Cython = "^0.29.27"

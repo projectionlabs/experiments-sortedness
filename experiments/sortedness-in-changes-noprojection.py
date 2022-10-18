@@ -21,12 +21,12 @@ from experimentssortedness.temporary import sortedness
 rng = default_rng()
 
 
-def randomize_projection(X_, p):
+def randomize_projection(X_, pct):
     xmin = min(X_[:, 0])
     xmax = max(X_[:, 0])
     ymin = min(X_[:, 1])
     ymax = max(X_[:, 1])
-    indices = rng.choice(len(X_), size=(len(X_) * p) // 100, replace=False)
+    indices = rng.choice(len(X_), size=(len(X_) * pct) // 100, replace=False)
     projection_rnd = X_.copy()
     replacement = np.random.rand(len(indices), 2)
     replacement[:, 0] = xmin + replacement[:, 0] * (xmax - xmin)

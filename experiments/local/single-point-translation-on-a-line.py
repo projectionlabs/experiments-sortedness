@@ -72,5 +72,6 @@ for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
     print("\n" + ylabel)
     df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=False, fontsize=plt.rcParams["font.size"])
 
+plt.grid()
 plt.tight_layout()
 plt.show()

@@ -5,20 +5,33 @@ import numpy as np
 import pandas as pd
 from lange import ap
 from numpy import mean, vstack
-from numpy.random import normal
+from numpy.random import normal, default_rng
 from sortedness.trustworthiness import trustworthiness
 
 from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness
 import matplotlib.font_manager as fm
 
+print("Intended to show how measures behave with increasing shuffling.")
+rng = default_rng()
 
-print("Intended to show sensitiveness from irrelevant distortion to changing order.")
-n = 17
+
+def randomize_projection(X_, pct):
+    xmin = min(X_[:, 0])
+    xmax = max(X_[:, 0])
+    ymin = min(X_[:, 1])
+    ymax = max(X_[:, 1])
+    indices = rng.choice(len(X_), size=int((len(X_) * pct) // 100), replace=False)
+    projection_rnd = X_.copy()
+    replacement = np.random.rand(len(indices), 2)
+    replacement[:, 0] = xmin + replacement[:, 0] * (xmax - xmin)
+    replacement[:, 1] = ymin + replacement[:, 1] * (ymax - ymin)
+    projection_rnd[indices] = replacement
+    return projection_rnd
+
+
+xmax, ymax, n = 100, 100, 1000
+levels = [0.1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 k = 5
-xmax = 100
-ymax = 100
-steps = 1000
-stdev = 0.001
 
 
 def tw(X, X_):
@@ -36,22 +49,19 @@ measures = {
     "$1-\\sigma_1$~~metric stress": lambda X, X_: 1 - mean(stress(X, X_)),
 }
 
-xlabel = "Noise Amplitude"
+xlabel = "Shuffling Level (\\%)"
 rnd = np.random.default_rng(4)
 x = rnd.uniform(0, xmax, n)
 y = rnd.uniform(0, ymax, n)
 X = vstack((x, y)).T
-D = np.clip(X - rnd.normal(X, stdev), -stdev, stdev)
-pprint(D)
 
-d = {xlabel: [x * stdev for x in ap[1, 2, ..., steps]]}
+d = {xlabel: levels}
 for m, f in measures.items():
     print(m)
     d[m] = []
-    for i in range(len(d[xlabel])):
-        print(i, end=" ")
-        X_ = X + i * D
-        # pprint(X_)
+    for level in d[xlabel]:
+        print(level, end=" ")
+        X_ = randomize_projection(X, level)
         d[m].append(f(X, X_))
     print(d)
 
@@ -72,7 +82,8 @@ for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
     ("dashed", 1.5, "brown"),
 ]):
     print("\n" + ylabel)
-    df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=True, fontsize=plt.rcParams["font.size"])
+    df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=False, fontsize=plt.rcParams["font.size"])
 
+plt.grid()
 plt.tight_layout()
 plt.show()
