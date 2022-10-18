@@ -29,10 +29,10 @@ weightedtau.isweightedtau = True
 
 def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parallel_n_trigger=500, parallel_kwargs=None, **kwargs):
     """
-    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
-        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
-        values can be lower due to that; including perfect projections.
-        that is, avoid penalizing a correct projection because of a tie
+    # TODO?: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        This probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        Values can be lower due to the presence of ties, but only when the projection isn't prefect for all points.
+        In the end, it might be even desired to penalize ties, as they don't exactly contribute to a stronger ordering and are (probabilistically) easier to be kept than a specific order.
     >>> ll = [[i] for i in range(17)]
     >>> a, b = np.array(ll), np.array(ll[0:1] + list(reversed(ll[1:])))
     >>> b.ravel()
@@ -87,11 +87,10 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, paral
     """
     Reciprocal sortedness: consider the neighborhood realtion the other way around.
     Might be good to assess the effect of a projection on hubness, and also to serve as a loss function for a custom projection algorithm.
-    Break ties by comparing distances. In case of a new tie, break it by lexicographical order.
-    # TODO: add flag to break (not so rare cases of) ties that persist after projection (implies a much slower algorithm)
-        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
-        values can be lower due to that; including perfect projections.
-        that is, avoid penalizing a correct projection because of a tie
+    # TODO?: add flag to break (not so) rare cases of ties that persist after projection (implies a much slower algorithm)
+        This probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        Values can be lower due to the presence of ties, but only when the projection isn't prefect for all points.
+        In the end, it might be even desired to penalize ties, as they don't exactly contribute to a stronger ordering and are (probabilistically) easier to be kept than a specific order.
 
     >>> ll = [[i, ] for i in range(17)]
     >>> a, b = np.array(ll), np.array(ll[0:1] + list(reversed(ll[1:])))
@@ -156,10 +155,10 @@ def global_pwsortedness(X, X_, parallel=True, parallel_n_trigger=10000, **parall
     """
     Global pairwise sortedness (Λ𝜏1)
 
-    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
-        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
-        values can be lower due to that; including perfect projections.
-        that is, avoid penalizing a correct projection because of a tie
+    # TODO?: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        This probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        Values can be lower due to the presence of ties, but only when the projection isn't prefect for all points.
+        In the end, it might be even desired to penalize ties, as they don't exactly contribute to a stronger ordering and are (probabilistically) easier to be kept than a specific order.
 
     Parameters
     ----------
@@ -185,10 +184,10 @@ def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, ba
     """
     Local pairwise sortedness (Λ𝜏w)
 
-    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
-        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
-        values can be lower due to that; including perfect projections.
-        that is, avoid penalizing a correct projection because of a tie
+    # TODO?: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        This probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        Values can be lower due to the presence of ties, but only when the projection isn't prefect for all points.
+        In the end, it might be even desired to penalize ties, as they don't exactly contribute to a stronger ordering and are (probabilistically) easier to be kept than a specific order.
 
     Parameters
     ----------
@@ -373,10 +372,10 @@ def sortedness1(X, X_, f=weightedtau, return_pvalues=False, **kwargs):
 
     TODO: need more study
 
-    # TODO: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
-        this probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
-        values can be lower due to that; including perfect projections.
-        that is, avoid penalizing a correct projection because of a tie
+    # TODO?: add flag to break extremely rare cases of ties that persist after projection (implies a much slower algorithm)
+        This probably doesn't make any difference on the result, except on categorical, pathological or toy datasets
+        Values can be lower due to the presence of ties, but only when the projection isn't prefect for all points.
+        In the end, it might be even desired to penalize ties, as they don't exactly contribute to a stronger ordering and are (probabilistically) easier to be kept than a specific order.
         [here we are breaking ties by lexicographical order, differently from other functions in the file]
     >>> import numpy as np
     >>> from functools import partial
