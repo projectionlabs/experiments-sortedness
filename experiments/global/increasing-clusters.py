@@ -42,19 +42,22 @@ measures = {
 }
 
 xlabel = "Cluster Size"
+d = {xlabel: [int(x) for x in gp[2, 2.35, ..., limit]]}
 a, b, c = (-distance, 0), (0, 0), (distance, 0)
-d = {"Cluster Size": [int(x) for x in gp[2, 2.35, ..., limit]]}
+xlst = []
+for center in [a, b, c]:
+    Xi, _ = make_blobs(n_samples=limit, cluster_std=[std], centers=[center], n_features=2, random_state=1, shuffle=False)
+    xlst.append(Xi)
 for m, f in measures.items():
     print(m)
     d[m] = []
     for n in d[xlabel]:
         print(n)
-        X, y = make_blobs(
-            n_samples=3 * n, cluster_std=[std, std, std], centers=[a, b, c],
-            n_features=2, random_state=1, shuffle=False
-        )
+        X = np.empty((3 * n, 2), dtype=float)
+        for i in range(3):
+            X[i * n:i * n + n] = xlst[i][:n]
         dx = np.array([[distance, 0]])
-        X_ = vstack((X[:n, :], X[n:2 * n, :] + dx, X[2 * n:, :] - dx))
+        X_ = vstack((X[:n], X[n:2 * n] + dx, X[2 * n:] - dx))
         d[m].append(f(X, X_))
 
 print("---------------------_")
@@ -66,16 +69,17 @@ plt.rcParams["font.size"] = 23
 for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
     item.set_fontsize(plt.rcParams["font.size"])
 for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
-    ("dotted", 1, "blue"),
-    ("dotted", 2, "orange"),
-    ("dotted", 2, "black"),
-    ("-.", 2, "red"),
-    ("dashed", 2, "purple"),
-    ("dashed", 1, "brown"),
+    ("dotted", 1.5, "blue"),
+    ("dotted", 3, "orange"),
+    ("dotted", 3, "black"),
+    ("-.", 3, "red"),
+    ("dashed", 3, "purple"),
+    ("dashed", 1.5, "brown"),
 ]):
     print("\n" + ylabel)
     df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=True, fontsize=plt.rcParams["font.size"])
 
 plt.grid()
+plt.legend(bbox_to_anchor=(1.05, 0.9), borderaxespad=0)
 plt.tight_layout()
 plt.show()

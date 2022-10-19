@@ -12,25 +12,10 @@ from experimentssortedness.temporary import sortedness, rsortedness, stress, pws
 import matplotlib.font_manager as fm
 
 print("Intended to show how measures behave with increasing shuffling.")
-rng = default_rng()
-
-
-def randomize_projection(X_, pct):
-    xmin = min(X_[:, 0])
-    xmax = max(X_[:, 0])
-    ymin = min(X_[:, 1])
-    ymax = max(X_[:, 1])
-    indices = rng.choice(len(X_), size=int((len(X_) * pct) // 100), replace=False)
-    projection_rnd = X_.copy()
-    replacement = np.random.rand(len(indices), 2)
-    replacement[:, 0] = xmin + replacement[:, 0] * (xmax - xmin)
-    replacement[:, 1] = ymin + replacement[:, 1] * (ymax - ymin)
-    projection_rnd[indices] = replacement
-    return projection_rnd
-
+rng = default_rng(seed=0)
 
 xmax, ymax, n = 100, 100, 1000
-levels = [0.1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+levels = [0, 3.125 / 2, 3.125, (3.125 + 6.25) / 2, 6.25, (6.25 + 12.5) / 2, 12.5, (12.5 + 25) / 2, 25, (25 + 50) / 2, 50, 62.5, 75, 87.5, 100]
 k = 5
 
 
@@ -54,6 +39,23 @@ rnd = np.random.default_rng(4)
 x = rnd.uniform(0, xmax, n)
 y = rnd.uniform(0, ymax, n)
 X = vstack((x, y)).T
+
+xmin = min(X[:, 0])
+xmax = max(X[:, 0])
+ymin = min(X[:, 1])
+ymax = max(X[:, 1])
+indices = rng.choice(len(X), size=len(X), replace=False)
+replacement = np.random.rand(len(indices), 2)
+replacement[:, 0] = xmin + replacement[:, 0] * (xmax - xmin)
+replacement[:, 1] = ymin + replacement[:, 1] * (ymax - ymin)
+
+
+def randomize_projection(M, pct):
+    get = int((len(M) * pct) // 100)
+    projection_rnd = X.copy()
+    projection_rnd[indices[:get], :] = replacement[:get, :]
+    return projection_rnd
+
 
 d = {xlabel: levels}
 for m, f in measures.items():
@@ -85,5 +87,6 @@ for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
     df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=False, fontsize=plt.rcParams["font.size"])
 
 plt.grid()
+plt.legend(bbox_to_anchor=(1.05, 0.9), borderaxespad=0)
 plt.tight_layout()
 plt.show()
