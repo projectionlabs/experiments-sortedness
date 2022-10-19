@@ -4,7 +4,7 @@ from pprint import pprint
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from lange import ap
+from lange import ap, gp
 from numpy import mean, vstack
 from numpy.random import normal, default_rng
 from pandas import DataFrame
@@ -14,7 +14,7 @@ from experimentssortedness.temporary import sortedness, rsortedness, stress, pws
 import matplotlib.font_manager as fm
 
 print("Intended to show how measures behave with increasing shuffling.")
-rng = default_rng()
+rng = default_rng(seed=0)
 
 
 def randomize_projection(X_, pct):
@@ -32,7 +32,8 @@ def randomize_projection(X_, pct):
 
 
 xmax, ymax, n = 100, 100, 1000
-levels = [12.5, 25, 50, 62.5, 75, 87.5, 100]
+# levels = [round(i * 50 / 2) for i in ap[1, 2, ..., 4]]
+levels = [3.125, 6.25, 12.5, 25, 50, 100]
 k = 5
 
 
@@ -68,7 +69,7 @@ for m, f in measures.items():
 
 print("---------------------_")
 _, ax = plt.subplots(figsize=(15, 5))
-df = DataFrame({"Level (\\%)": lvs, "Measure": ms, "Value": vs})
+df = DataFrame({xlabel: lvs, "Measure": ms, "Value": vs})
 # ax.set_title('Loss curve', fontsize=15)
 plt.rcParams["font.size"] = 23
 for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
