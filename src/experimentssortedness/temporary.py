@@ -77,7 +77,7 @@ def sortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, parall
         result.append(round(corr, 12))
         pvalues.append(round(pvalue, 12))
 
-    result = np.array(result, dtype=np.float)
+    result = np.array(result, dtype=float)
     if return_pvalues:
         return np.array(list(zip(result, pvalues)))
     return result
@@ -145,7 +145,7 @@ def rsortedness(X, X_, f=weightedtau, return_pvalues=False, parallel=True, paral
         result.extend(corrs)
         pvalues.extend(pvalues)
 
-    result = np.array(result, dtype=np.float)
+    result = np.array(result, dtype=float)
     if return_pvalues:
         return np.array(list(zip(result, pvalues)))
     return result

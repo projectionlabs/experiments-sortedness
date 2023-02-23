@@ -52,7 +52,7 @@ def rank_alongrow(X, method="average", step=10, parallel=True, **parallel_kwargs
         step = n
     it = (X[j:j + step] for j in range(0, n, step))
     jobs = tmap(lambda M: rankdata(M, axis=1, method=method), it)
-    return np.vstack(list(jobs)).astype(np.int) - 1
+    return np.vstack(list(jobs)).astype(int) - 1
 
 
 def argsort_alongrow(X, step=10, parallel=True, **parallel_kwargs):

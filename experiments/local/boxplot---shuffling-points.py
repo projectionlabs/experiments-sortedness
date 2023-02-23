@@ -1,17 +1,12 @@
-import seaborn as sns
-from pprint import pprint
-
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-from lange import ap, gp
-from numpy import mean, vstack
+import seaborn as sns
+from numpy import vstack
 from numpy.random import normal, default_rng
 from pandas import DataFrame
 from sortedness.trustworthiness import trustworthiness
 
-from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness
-import matplotlib.font_manager as fm
+from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness
 
 print("Intended to show how measures behave with increasing shuffling.")
 rng = default_rng(seed=0)
@@ -70,16 +65,25 @@ for m, f in measures.items():
         vs.extend(f(X, X_))
 
 print("---------------------_")
-_, ax = plt.subplots(figsize=(15, 5))
+_, ax = plt.subplots(figsize=(14, 9))
+# ax.set_ylim([-0.35, 1.05])
 df = DataFrame({xlabel: lvs, "Measure": ms, "Value": vs})
 # ax.set_title('Loss curve', fontsize=15)
-plt.rcParams["font.size"] = 23
+plt.rcParams["font.size"] = 35
 for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
     item.set_fontsize(plt.rcParams["font.size"])
     # linestyle=style, lw=width, color=color, logy=False, logx=False, fontsize=plt.rcParams["font.size"])
 
 sns.boxplot(ax=ax, width=0.7, y='Value', x=xlabel, data=df, palette=["blue", "orange", "gray", "red", "brown"], hue='Measure')
 plt.grid()
-plt.legend(bbox_to_anchor=(1.05, 0.9), borderaxespad=0)
-plt.tight_layout()
-plt.show()
+
+plt.legend(loc=3)
+plt.ylabel("")
+plt.subplots_adjust(left=0.07, bottom=0.14, right=0.995, top=0.99)
+arq = '/home/davi/git/articles/sortedness/images/boxplot.pgf'
+plt.savefig(arq, bbox_inches='tight')
+with open(arq, "r") as f:
+    txt = f.read().replace("sffamily", "rmfamily")
+with open(arq, "w") as f:
+    f.write(txt)
+# plt.show()

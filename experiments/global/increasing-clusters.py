@@ -6,7 +6,7 @@ from numpy import mean, vstack
 from sklearn.datasets import make_blobs
 from sklearn.manifold import trustworthiness
 
-from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness, sortedness1
+from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness
 
 k = 5
 limit = 300
@@ -61,11 +61,12 @@ for m, f in measures.items():
         d[m].append(f(X, X_))
 
 print("---------------------_")
-_, ax = plt.subplots(figsize=(15, 5))
+_, ax = plt.subplots(figsize=(14, 9))
+ax.set_ylim([-0.4, 1.05])
 df = pd.DataFrame(d)
 df = df.set_index(xlabel)  # .plot()
 # ax.set_title('Loss curve', fontsize=15)
-plt.rcParams["font.size"] = 23
+plt.rcParams["font.size"] = 35
 for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
     item.set_fontsize(plt.rcParams["font.size"])
 for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
@@ -80,6 +81,12 @@ for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
     df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=True, fontsize=plt.rcParams["font.size"])
 
 plt.grid()
-plt.legend(bbox_to_anchor=(1.05, 0.9), borderaxespad=0)
-plt.tight_layout()
-plt.show()
+plt.legend(loc=4)
+plt.subplots_adjust(left=0.07, bottom=0.14, right=0.995, top=0.99)
+arq = '/home/davi/git/articles/sortedness/images/cluster-sizes.pgf'
+plt.savefig(arq, bbox_inches='tight')
+with open(arq, "r") as f:
+    txt = f.read().replace("sffamily", "rmfamily")
+with open(arq, "w") as f:
+    f.write(txt)
+# plt.show()

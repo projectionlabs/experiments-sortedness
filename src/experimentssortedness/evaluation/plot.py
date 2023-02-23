@@ -24,7 +24,7 @@ class Plot:
 
     def __lshift__(self, other):
         slabel, color = other
-        self.ax.scatter(self.d[self.xlabel], self.d[slabel], s=self.marksize, c=color, label=slabel)
+        self.ax.scatter(x=self.d[self.xlabel], y=self.d[slabel], s=self.marksize, c=color, label=slabel)
 
     def finish(self):
         if self.legend:

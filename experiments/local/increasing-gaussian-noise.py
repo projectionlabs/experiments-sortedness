@@ -9,8 +9,6 @@ from numpy.random import normal
 from sortedness.trustworthiness import trustworthiness
 
 from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness
-import matplotlib.font_manager as fm
-
 
 print("Intended to show sensitiveness from irrelevant distortion to changing order.")
 n = 17
@@ -56,11 +54,13 @@ for m, f in measures.items():
     print(d)
 
 print("---------------------_")
-_, ax = plt.subplots(figsize=(15, 5))
+_, ax = plt.subplots(figsize=(15, 9))
+ax.set_xlim([0.009, 0.602])
+ax.set_ylim([0.995, 1.0001])
 df = pd.DataFrame(d)
 df = df.set_index(xlabel)  # .plot()
 # ax.set_title('Loss curve', fontsize=15)
-plt.rcParams["font.size"] = 23
+plt.rcParams["font.size"] = 35
 for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
     item.set_fontsize(plt.rcParams["font.size"])
 for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
@@ -75,5 +75,14 @@ for (ylabel, data), (style, width, color) in zip(list(d.items())[1:], [
     df.plot.line(ax=ax, y=[ylabel], linestyle=style, lw=width, color=color, logy=False, logx=True, fontsize=plt.rcParams["font.size"])
 
 plt.grid()
-plt.tight_layout()
-plt.show()
+
+plt.legend(loc=3)
+plt.ylabel("")
+plt.subplots_adjust(left=0.07, bottom=0.14, right=0.995, top=0.99)
+arq = '/home/davi/git/articles/sortedness/images/gaussian-noise.pgf'
+plt.savefig(arq, bbox_inches='tight')
+with open(arq, "r") as f:
+    txt = f.read().replace("sffamily", "rmfamily")
+with open(arq, "w") as f:
+    f.write(txt)
+# plt.show()
