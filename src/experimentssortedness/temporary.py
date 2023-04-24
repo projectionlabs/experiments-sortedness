@@ -259,7 +259,7 @@ def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, ba
     if debug:
         print(2)
     if rankings is None:
-        D, D_ = tmap(squareform, [scores_X, scores_X_]) if dist is None else (-dist[0], -dist[1])
+        D, D_ = tmap(squareform, [-scores_X, -scores_X_]) if dist is None else (dist[0], dist[1])
         if debug:
             print(3)
         n = len(D)
@@ -281,11 +281,13 @@ def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, ba
             return M.T
 
         M = makeM(D)
-        if debug: print(6)
+        if debug:
+            print(6)
         R = rank_alongrow(M, step=n // batches, parallel=parallel, **parallel_kwargs).T
         del M
         gc.collect()
-        if debug: print(7)
+        if debug:
+            print(7)
         res = np.round(parwtau(scores_X, scores_X_, npoints, R, parallel=parallel, **parallel_kwargs), 12)
         del R
         gc.collect()
