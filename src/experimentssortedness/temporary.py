@@ -6,7 +6,7 @@ import gc
 
 import numpy as np
 import pathos.multiprocessing as mp
-from numpy import eye, mean, sqrt, minimum, argsort
+from numpy import eye, mean, sqrt, minimum, argsort, ndarray
 from numpy.random import permutation
 from scipy.spatial.distance import cdist, pdist, squareform
 from scipy.stats import rankdata, kendalltau, weightedtau
@@ -180,7 +180,16 @@ def global_pwsortedness(X, X_, parallel=True, parallel_n_trigger=10000, **parall
     return kendalltau(dists_X, dists_X_)
 
 
-def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, batches=10, debug=False, cutoff=1000, **parallel_kwargs):
+def cov2dissimilarity(M: ndarray):
+    variances = M.diagonal()
+    dissimilarities = np.zeros(M.shape)
+    for i in range(M.shape[0]):
+        for j in range(M.shape[1]):
+            dissimilarities[i, j] = variances[i] + variances[j] - 2 * M[i, j]
+    return dissimilarities
+
+
+def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, batches=10, debug=False, cutoff=1000, dist=None, **parallel_kwargs):
     """
     Local pairwise sortedness (Λ𝜏w)
 
@@ -242,21 +251,24 @@ def pwsortedness(X, X_, rankings=None, parallel=True, parallel_n_trigger=200, ba
     >>> min(r), round(mean(r), 12), max(r)
     (-0.11688262962, -0.073208806532, -0.046235216351)
     """
-    npoints = len(X)
+    npoints = len(X) if X is not None else len(dist[0])
     tmap = mp.ThreadingPool(**parallel_kwargs).imap if parallel and npoints > parallel_n_trigger else map
     if debug: print(1)
     thread = lambda M: -pdist(M, metric="sqeuclidean")
-    scores_X, scores_X_ = tmap(thread, [X, X_])
-    if debug: print(2)
+    scores_X, scores_X_ = tmap(thread, [X, X_]) if X is not None else (-squareform(dist[0]), -squareform(dist[1]))
+    if debug:
+        print(2)
     if rankings is None:
-        D, D_ = tmap(squareform, [scores_X, scores_X_])
-        if debug: print(3)
+        D, D_ = tmap(squareform, [scores_X, scores_X_]) if dist is None else (-dist[0], -dist[1])
+        if debug:
+            print(3)
         n = len(D)
         m = (n ** 2 - n) // 2
 
         def makeM(E):
             M = np.zeros((m, n))
-            if debug: print(4)
+            if debug:
+                print(4)
             c = 0
             for i in range(n - 1):  # a bit slow, but only a fraction of wtau (~5%)
                 h = n - i - 1
