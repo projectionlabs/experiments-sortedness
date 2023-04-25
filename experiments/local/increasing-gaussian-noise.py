@@ -10,7 +10,7 @@ from sortedness.trustworthiness import trustworthiness
 
 from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness
 
-print("Intended to show sensitiveness from irrelevant distortion to changing order.")
+print("Intended to show sensitivity from irrelevant distortion to changing order.")
 n = 17
 k = 5
 xmax = 100

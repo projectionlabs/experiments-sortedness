@@ -12,7 +12,7 @@ from sortedness.trustworthiness import trustworthiness
 
 from experimentssortedness.temporary import sortedness, rsortedness, stress, pwsortedness, global_pwsortedness, sortedness1
 
-print("Intended to show sensitiveness (which measures is triggered earlier) and discontinuities for a monotonically increasing distortion.")
+print("Intended to show sensitivity (which measures is triggered earlier) and discontinuities for a monotonically increasing distortion.")
 k = 5
 n = 25
 l = 2 * n
