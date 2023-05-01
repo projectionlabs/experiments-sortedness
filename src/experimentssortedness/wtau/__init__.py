@@ -6,7 +6,13 @@ from numpy import lexsort, array, empty, intp, arange
 from .wtau import _weightedrankedtau, _invert_in_place  # wtau.pyx
 
 
-# TODO Confirm scipy LICENSE attribution for pyx
+"""
+README
+======
+
+Building:
+CYTHONIZE=1 ; poetry run cythonize -a -i ./src/sortedness/wtau/wtau.pyx
+"""
 def parwtau(scoresX, scoresX_, npoints, R=True, parallel=True, **kwargs):
     """**kwargs is for ProcessingPool, e.g.: npcus=8"""
     npositions = len(scoresX)
